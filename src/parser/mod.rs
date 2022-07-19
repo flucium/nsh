@@ -96,6 +96,26 @@ impl Node {
             }
         }
     }
-
     
+}
+
+
+impl Eq for Node {}
+
+impl Ord for Node {
+    fn cmp(&self, other: &Self) -> Ordering {
+        (self.kind.value()).cmp(&(other.kind.value()))
+    }
+}
+
+impl PartialOrd for Node {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.kind.value().cmp(&other.kind.value()))
+    }
+}
+
+impl PartialEq for Node {
+    fn eq(&self, other: &Self) -> bool {
+        (self.kind.value()) == (other.kind.value())
+    }
 }
