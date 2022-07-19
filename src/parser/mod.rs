@@ -2,6 +2,13 @@ pub mod lexer;
 pub mod token;
 use std::cmp::Ordering;
 
+
+
+pub enum Most {
+    Max,
+    Min,
+}
+
 #[derive(Debug, Clone)]
 pub enum NodeKind {
     Semicolon(usize),
@@ -31,7 +38,7 @@ impl Eq for NodeKind {}
 
 impl Ord for NodeKind {
     fn cmp(&self, other: &Self) -> Ordering {
-        (self.value()).cmp(&(other.value()))
+        self.value().cmp(&other.value())
     }
 }
 
@@ -43,7 +50,7 @@ impl PartialOrd for NodeKind {
 
 impl PartialEq for NodeKind {
     fn eq(&self, other: &Self) -> bool {
-        (self.value()) == (other.value())
+        self.value() == other.value()
     }
 }
 
@@ -96,9 +103,64 @@ impl Node {
             }
         }
     }
-    
-}
 
+    pub fn get_most_node(&mut self, most: Most) -> Node {
+        let mut current_min_node = self.clone();
+
+        let mut buffer = Vec::new();
+        buffer.push(self);
+
+        while let Some(node) = buffer.pop() {
+            match most {
+                Most::Max => {
+                    if node.kind > current_min_node.kind {
+                        current_min_node = node.clone();
+                    }
+                }
+                Most::Min => {
+                    if node.kind < current_min_node.kind {
+                        current_min_node = node.clone();
+                    }
+                }
+            }
+
+            if let Some(left) = &mut node.left {
+                buffer.push(left);
+            }
+
+            if let Some(right) = &mut node.right {
+                buffer.push(right);
+            }
+        }
+
+        current_min_node
+    }
+
+    pub fn find(&mut self, target: Node) -> Option<Node> {
+        self.dfs(target)
+    }
+
+    fn dfs(&mut self, target: Node) -> Option<Node> {
+        let mut buffer = Vec::new(); //FILO
+        buffer.push(self);
+
+        while let Some(node) = buffer.pop() {
+            if node.kind() == target.kind() {
+                return Some(node.clone());
+            }
+
+            if let Some(left) = &mut node.left {
+                buffer.push(left);
+            }
+
+            if let Some(right) = &mut node.right {
+                buffer.push(right);
+            }
+        }
+
+        None
+    }
+}
 
 impl Eq for Node {}
 
@@ -116,6 +178,6 @@ impl PartialOrd for Node {
 
 impl PartialEq for Node {
     fn eq(&self, other: &Self) -> bool {
-        (self.kind.value()) == (other.kind.value())
+        self.kind.value() == other.kind.value()
     }
 }
