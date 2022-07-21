@@ -1,3 +1,11 @@
 mod parser;
+mod prompt;
+mod variable;
+mod ansi;
+mod manifest;
+mod builtin;
+mod shell;
 
-fn main() {}
+fn main() {
+    parser::parse();
+}
