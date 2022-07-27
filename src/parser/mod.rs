@@ -29,12 +29,12 @@ fn parse_reference(tokens: Vec<Token>) -> Option<Node> {
     None
 }
 
-fn split(tokens: Vec<Token>, p: Token) {}
+// fn split(tokens: Vec<Token>, p: Token) {}
 
-pub enum Most {
-    Max,
-    Min,
-}
+// pub enum Most {
+//     Max,
+//     Min,
+// }
 
 // #[derive(Debug, Clone)]
 // pub enum NodeKind {
@@ -139,6 +139,10 @@ impl Node {
     pub fn insert_left(&mut self) {}
 
     pub fn insert_right(&mut self) {}
+
+    pub fn pop(&mut self){}
+
+    pub fn find(&mut self){}
 
     fn dfs(&mut self, target: Node) -> Option<Node> {
         let mut buffer = Vec::new(); //FILO
