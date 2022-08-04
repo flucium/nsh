@@ -1,11 +1,6 @@
-use std::collections::VecDeque;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Result;
-use std::iter::Peekable;
-use std::vec::IntoIter;
-
-pub type Tokens = VecDeque<Token>;
 
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Token {
