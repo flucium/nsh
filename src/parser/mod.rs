@@ -4,37 +4,39 @@ use crate::parser::lexer::Lexer;
 use crate::parser::token::*;
 use std::iter::Peekable;
 use std::mem::swap;
+use std::vec::IntoIter;
 
 pub struct Parser {
-    tokens: Tokens,
+    tokens: Peekable<IntoIter<Token>>,
     ast: Node,
-    curr_node: Option<Node>,
 }
 
 impl Parser {
     pub fn new(mut lexer: Lexer) -> Self {
         Self {
-            tokens: lexer.tokenize(),
-            ast: Node::new(NodeKind::Semicolon),
-            curr_node: None,
+            tokens: lexer.tokenize().into_iter().peekable(),
+            ast: Node::new(NodeKind::Pipe),
         }
     }
 
-    fn peek(&mut self) -> Option<Token> {
-        match self.tokens.pop_front() {
-            Some(token) => {
-                self.tokens.push_front(token.clone());
-
-                Some(token)
+    pub fn parse(&mut self) {
+        while let Some(token) = self.tokens.next() {
+            
+            
+            match self.tokens.peek() {
+                Some(peek) => {
+                    if *peek == Token::EOF {
+                        break;
+                    }
+                }
+                None => break,
             }
-            None => None,
         }
     }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum NodeKind {
-    Semicolon,
     Pipe,
     Insert,
     Reference,
@@ -85,10 +87,6 @@ impl Node {
         self.right.is_some()
     }
 
-    // pub fn insert(&mut self, node: Node) {
-        
-    // }
-
     pub fn insert_left(&mut self, node: Node) {
         match self.left.clone() {
             Some(mut left) => left.insert_left(node),
@@ -102,9 +100,6 @@ impl Node {
             None => self.right = Some(Box::new(node)),
         }
     }
-    // pub fn pop(&mut self) {}
-
-    // pub fn find(&mut self) {}
 
     fn dfs(&mut self, target: Node) -> Option<Node> {
         let mut buffer = Vec::new(); //FILO
@@ -126,30 +121,4 @@ impl Node {
 
         None
     }
-}
-
-pub struct Error {
-    kind: ErrorKind,
-    msg: String,
-}
-
-impl Error {
-    pub fn new(kind: ErrorKind, message: &str) -> Self {
-        Self {
-            kind: kind,
-            msg: message.to_string(),
-        }
-    }
-
-    pub fn kind(&self) -> &ErrorKind {
-        &self.kind
-    }
-
-    pub fn message(&self) -> &str {
-        &self.msg
-    }
-}
-
-pub enum ErrorKind {
-    SyntaxError,
 }
