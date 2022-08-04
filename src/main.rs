@@ -11,6 +11,7 @@ fn main() {
 
     // parser::parse(tkns);
 
-    // println!("{:?}", parser::Parser::new(parser::lexer::Lexer::new("echo $PWD")).parse_command());
+    // println!("{:?}", parser::Parser::new(parser::lexer::Lexer::new("A = $B")).parse());
 
+    //println!("{:?}",parser::lexer::Lexer::new("ls -a 2> err.txt | cat -b | rev | rev > test.txt").tokenize());
 }
