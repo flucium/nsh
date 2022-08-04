@@ -1,133 +1,103 @@
 use crate::parser::token::Token;
+use crate::parser::token::Tokens;
+use std::iter::Peekable;
+use std::vec::IntoIter;
 
 pub struct Lexer {
-    input: Vec<char>,
-    index: usize,
-    curr_ch: Option<char>,
-    peek_ch: Option<char>,
-    tokens: Vec<Token>,
+    chars: Peekable<IntoIter<char>>,
+
+    tokens: Tokens,
 }
 
 impl Lexer {
     pub fn new(input: &str) -> Self {
         Self {
-            input: input.chars().map(|ch| ch as char).collect(),
-            index: 0,
-            curr_ch: None,
-            peek_ch: None,
-            tokens: Vec::new(),
+            chars: input
+                .chars()
+                .map(|ch| ch as char)
+                .collect::<Vec<char>>()
+                .into_iter()
+                .peekable(),
+            tokens: Tokens::new(),
         }
     }
 
-    pub fn tokenize(&mut self) -> Vec<Token> {
-        loop {
-            self.read_char();
+    pub fn tokenize(&mut self) -> Tokens {
+        while let Some(ch) = self.chars.next() {
+            if ch.is_whitespace() {
+                continue;
+            }
 
-            if let Some(curr_ch) = self.curr_ch {
-                if curr_ch.is_whitespace() {
-                    continue;
-                }
+            if ch.is_numeric() {
+                if let Some(peek) = self.chars.peek() {
+                    if matches!(peek, '>' | '<') {
+                        self.chars.next();
 
-                if self.is_fd() {
-                    let n = String::from(curr_ch)
-                        .parse::<u8>()
-                        .unwrap_or(0)
-                        .try_into()
-                        .unwrap_or(0);
-
-                    self.tokens.push(Token::Redirect(n));
-                    self.read_char();
-                    continue;
-                }
-
-                match curr_ch {
-                    '|' => self.tokens.push(Token::Pipe),
-                    '>' => self.tokens.push(Token::Redirect(1)),
-                    '<' => self.tokens.push(Token::Redirect(0)),
-                    '&' => self.tokens.push(Token::Background),
-                    '=' => self.tokens.push(Token::Equal),
-                    '$' => self.tokens.push(Token::Reference),
-                    ';' => self.tokens.push(Token::Semicolon),
-                    '"' => {
-                        let string = self.extract_string(true);
-                        self.tokens.push(Token::String(string));
-                    }
-                    _ => {
-                        let string = self.extract_string(false);
-                        self.tokens.push(Token::String(string));
+                        let n = String::from(ch)
+                            .parse::<u8>()
+                            .unwrap_or(0)
+                            .try_into()
+                            .unwrap_or(0);
+                        self.tokens.push_back(Token::REDIRECT(n));
+                        
+                        continue;
                     }
                 }
-                if self.peek_ch.is_none() {
-                    break;
+            }
+
+            match ch {
+                '|' => self.tokens.push_back(Token::PIPE),
+                '>' => self.tokens.push_back(Token::REDIRECT(1)),
+                '<' => self.tokens.push_back(Token::REDIRECT(0)),
+                '&' => self.tokens.push_back(Token::BACKGROUND),
+                '=' => self.tokens.push_back(Token::EQUAL),
+                '$' => self.tokens.push_back(Token::REFERENCE),
+                '"' => {
+                    let mut string = String::new();
+                    string.push_str(&self.extract_string(true));
+                    self.tokens.push_back(Token::STRING(string));
                 }
-            } else {
+                _ => {
+                    let mut string = String::from(ch);
+
+                    string.push_str(&self.extract_string(false));
+                    self.tokens.push_back(Token::STRING(string));
+                }
+            }
+
+            if self.chars.peek().is_none() {
+                self.tokens.push_back(Token::EOF);
                 break;
             }
         }
 
-
-        self.tokens.clone()
-    }
-
-    fn is_fd(&mut self) -> bool {
-        let temp_index = self.index;
-        self.read_char();
-        for ch in self.extract_string(false).chars() {
-            if !ch.is_numeric() {
-                self.index = temp_index - 1;
-                self.read_char();
-                return matches!(ch, '>' | '<');
-            }
-        }
-
-        false
+        self.tokens.clone().into()
     }
 
     fn extract_string(&mut self, esc: bool) -> String {
-        if self.curr_ch.unwrap_or_default() == '"' {
-            self.read_char();
-        }
+        let mut buffer = String::new();
 
-        let mut buffer = String::from(self.curr_ch.unwrap_or_default());
+        while let Some(ch) = self.chars.next() {
+            buffer.push(ch);
 
-        loop {
-            self.read_char();
-            match self.curr_ch {
-                Some(ch) => {
-                    match esc {
-                        true => {
-                            if ch == '"' {
-                                break;
-                            }
-                        }
-                        false => {
-                            if ch.is_whitespace() {
-                                break;
-                            }
+            match self.chars.peek() {
+                Some(peek) => match esc {
+                    true => {
+                        if *peek == '"' {
+                            self.chars.next();
+                            break;
                         }
                     }
-
-                    buffer.push(ch);
-                }
+                    false => {
+                        if peek.is_whitespace() {
+                            break;
+                        }
+                    }
+                },
                 None => break,
             }
         }
 
         buffer
-    }
-
-    fn read_char(&mut self) {
-        if let Some(ch) = self.input.get(self.index) {
-            self.curr_ch = Some(*ch);
-            self.peek_ch = match self.input.get(self.index + 1) {
-                Some(ch) => Some(*ch),
-                None => None,
-            };
-
-            self.index += 1;
-        } else {
-            self.curr_ch = None;
-            self.peek_ch = None;
-        }
     }
 }
