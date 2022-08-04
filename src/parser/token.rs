@@ -1,28 +1,33 @@
+use std::collections::VecDeque;
 use std::fmt::Display;
 use std::fmt::Formatter;
 use std::fmt::Result;
+use std::iter::Peekable;
+use std::vec::IntoIter;
 
-#[derive(Debug, Clone, PartialEq)]
+pub type Tokens = VecDeque<Token>;
+
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Token {
-    String(String), // any string
-    Reference,      // $
-    Equal,          // =
-    Pipe,           // |
-    Semicolon,      //;
-    Background,     // &
-    Redirect(u8),   // > <
+    STRING(String), // any string
+    REFERENCE,      // $
+    EQUAL,          // =
+    PIPE,           // |
+    BACKGROUND,     // &
+    REDIRECT(u8),   // > <
+    EOF,            // end of file
 }
 
 impl Display for Token {
     fn fmt(&self, tkn: &mut Formatter) -> Result {
         match self {
-            Token::Pipe => write!(tkn, "|"),
-            Token::Equal => write!(tkn, "="),
-            Token::Redirect(n) => write!(tkn, "<{}", n),
-            Token::Reference => write!(tkn, "$"),
-            Token::Semicolon => write!(tkn, ";"),
-            Token::Background => write!(tkn, "&"),
-            Token::String(string) => write!(tkn, "{}", string),
+            Token::PIPE => write!(tkn, "|"),
+            Token::EQUAL => write!(tkn, "="),
+            Token::REDIRECT(n) => write!(tkn, "<{}", n),
+            Token::REFERENCE => write!(tkn, "$"),
+            Token::BACKGROUND => write!(tkn, "&"),
+            Token::STRING(string) => write!(tkn, "{}", string),
+            Token::EOF => write!(tkn, "EOF"),
         }
     }
 }
