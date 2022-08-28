@@ -19,7 +19,7 @@ impl Parser {
         }
     }
 
-    fn parse(&mut self) -> Result<Option<Node>, ()> {
+    pub fn parse(&mut self) -> Result<Option<Node>, ()> {
         loop {
             if self.lexer.next_if_eq(&Token::Pipe).is_some() {
                 self.nodes.borrow_mut().push(Node::Pipe(Pipe::new()));
@@ -219,6 +219,12 @@ pub enum Node {
     Background(bool),
 }
 
+impl Node {
+    pub fn get(self) -> Node {
+        self
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 struct VInsert {
     key: Option<Box<Node>>,
@@ -319,7 +325,7 @@ impl CommandSuffix {
     }
 }
 #[derive(Debug, Eq, PartialEq)]
-struct Pipe {
+pub struct Pipe {
     left: Option<Box<Node>>,
     right: Option<Box<Node>>,
 }
@@ -338,5 +344,13 @@ impl Pipe {
 
     fn insert_right(&mut self, node: Node) {
         self.right = Some(Box::new(node))
+    }
+
+    pub fn left(&self) -> Option<&Node> {
+        self.left.as_deref()
+    }
+
+    pub fn right(&self) -> Option<&Node> {
+        self.right.as_deref()
     }
 }
