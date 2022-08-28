@@ -2,7 +2,6 @@ mod lexer;
 mod token;
 use crate::parser::lexer::Lexer;
 use crate::parser::token::*;
-use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::io::stdout;
@@ -24,10 +23,10 @@ impl Parser {
 
     pub fn parse(&mut self) {
         loop {
-
-            if let Some(node)=self.parse_block(){
+            if let Some(node) = self.parse_block() {
                 self.nodes.borrow_mut().push(node)
             }
+
             let node = match self.parse_command() {
                 Ok(ok) => ok,
                 Err(_) => panic!(""),
@@ -37,19 +36,17 @@ impl Parser {
             if let Some(node) = node {
                 self.nodes.borrow_mut().push(node);
             } else {
-                match self.create_tree(){
-                    Ok(ok)=>{
-                        if let Some(node) = ok{
+                match self.create_tree() {
+                    Ok(ok) => {
+                        if let Some(node) = ok {
                             self.nodes.borrow_mut().push(node)
                         }
                     }
-                    Err(_)=>panic!("")
+                    Err(_) => panic!(""),
                 }
 
-                break;   
+                break;
             }
-
-
         }
 
         writeln!(stdout(), "{:?}", self.nodes);
@@ -422,11 +419,4 @@ impl Block {
     pub fn right(&self) -> Option<&Node> {
         self.right.as_deref()
     }
-}
-
-#[test]
-fn parser_test() {
-    let mut parser = Parser::new("ls | cat -b > output.txt ; echo hello".chars().collect());
-    parser.parse();
-    // writeln!(stdout(), "{:?}", parser.create_tree());
 }
