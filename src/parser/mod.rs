@@ -21,9 +21,10 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) {
+    pub fn parse(&mut self) -> Result<Option<&Node>, ()> {
         loop {
             let node = self.parse_block().or_else(|| {
+                
                 match self.parse_vinsert() {
                     Ok(ok) => ok,
                     Err(err) => {
@@ -55,48 +56,8 @@ impl Parser {
             }
         }
 
-        writeln!(stdout(), "{:?}", self.nodes);
+        Ok(self.nodes.get_mut().get(0))
     }
-
-    // pub fn parse(&mut self) {
-    //     loop {
-    //         if let Some(node) = self.parse_block() {
-    //             self.nodes.borrow_mut().push(node)
-    //         }
-
-    //         let node = match self.parse_vinsert() {
-    //             Ok(ok) => ok,
-    //             Err(_) => panic!(""),
-    //         };
-
-    //         if let Some(node ) = node{
-    //             self.nodes.borrow_mut().push(node);
-    //         }
-
-    //         let node = match self.parse_command() {
-    //             Ok(ok) => ok,
-    //             Err(_) => panic!(""),
-    //         }
-    //         .or_else(|| self.parse_pipe());
-
-    //         if let Some(node) = node {
-    //             self.nodes.borrow_mut().push(node);
-    //         } else {
-    //             match self.create_tree() {
-    //                 Ok(ok) => {
-    //                     if let Some(node) = ok {
-    //                         self.nodes.borrow_mut().push(node)
-    //                     }
-    //                 }
-    //                 Err(_) => panic!(""),
-    //             }
-
-    //             break;
-    //         }
-    //     }
-
-    //     writeln!(stdout(), "{:?}", self.nodes);
-    // }
 
     fn create_tree(&mut self) -> Result<Option<Node>, ()> {
         let mut buf_node: Option<Node> = None;
