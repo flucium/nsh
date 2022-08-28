@@ -97,13 +97,17 @@ impl Lexer {
                     break;
                 }
 
-                // '"' => {
-                //     break;
-                // }
+                '"' => {
+                    // (ch.is_whitespace() == false).then(|| self.input.push_front(ch));
+
+                    token = Some(Token::String(self.read_string(true)));
+                    break;
+                }
+
                 _ => {
                     (ch.is_whitespace() == false).then(|| self.input.push_front(ch));
 
-                    token = Some(Token::String(self.read_string()));
+                    token = Some(Token::String(self.read_string(false)));
 
                     break;
                 }
@@ -113,14 +117,17 @@ impl Lexer {
         token
     }
 
-    fn read_string(&mut self) -> String {
+    fn read_string(&mut self, esc: bool) -> String {
         let mut string = String::new();
 
         while let Some(ch) = self.input.pop_front() {
-            if ch.is_whitespace() {
+            if ch.is_whitespace() && !esc{
                 break;
             }
 
+            if esc && ch == '"'{
+                break;
+            }
             string.push(ch)
         }
 
@@ -165,4 +172,9 @@ fn lexer_test() {
     assert_eq!(Some(Token::Semicolon), lexer.pop_front());
     assert_eq!(Some(Token::Reference), lexer.pop_front());
     assert_eq!(Some(Token::String("KEY".to_string())), lexer.pop_front());
+
+    assert_eq!(
+        Some(Token::String("hello rust".to_string())),
+        Lexer::new("\"hello rust\"".chars().collect()).pop_front()
+    );
 }
