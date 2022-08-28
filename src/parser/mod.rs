@@ -23,34 +23,80 @@ impl Parser {
 
     pub fn parse(&mut self) {
         loop {
-            if let Some(node) = self.parse_block() {
-                self.nodes.borrow_mut().push(node)
-            }
-
-            let node = match self.parse_command() {
-                Ok(ok) => ok,
-                Err(_) => panic!(""),
-            }
-            .or_else(|| self.parse_pipe());
-
-            if let Some(node) = node {
-                self.nodes.borrow_mut().push(node);
-            } else {
-                match self.create_tree() {
-                    Ok(ok) => {
-                        if let Some(node) = ok {
-                            self.nodes.borrow_mut().push(node)
-                        }
+            let node = self.parse_block().or_else(|| {
+                match self.parse_vinsert() {
+                    Ok(ok) => ok,
+                    Err(err) => {
+                        panic!("")
                     }
-                    Err(_) => panic!(""),
                 }
+                .or_else(|| match self.parse_command() {
+                    Ok(ok) => ok,
+                    Err(err) => panic!(""),
+                })
+                .or_else(|| self.parse_pipe())
+            });
 
-                break;
+            match node {
+                Some(node) => self.nodes.borrow_mut().push(node),
+
+                None => {
+                    match self.create_tree() {
+                        Ok(ok) => {
+                            if let Some(node) = ok {
+                                self.nodes.borrow_mut().push(node)
+                            }
+                        }
+                        Err(err) => panic!(""),
+                    }
+
+                    break;
+                }
             }
         }
 
         writeln!(stdout(), "{:?}", self.nodes);
     }
+
+    // pub fn parse(&mut self) {
+    //     loop {
+    //         if let Some(node) = self.parse_block() {
+    //             self.nodes.borrow_mut().push(node)
+    //         }
+
+    //         let node = match self.parse_vinsert() {
+    //             Ok(ok) => ok,
+    //             Err(_) => panic!(""),
+    //         };
+
+    //         if let Some(node ) = node{
+    //             self.nodes.borrow_mut().push(node);
+    //         }
+
+    //         let node = match self.parse_command() {
+    //             Ok(ok) => ok,
+    //             Err(_) => panic!(""),
+    //         }
+    //         .or_else(|| self.parse_pipe());
+
+    //         if let Some(node) = node {
+    //             self.nodes.borrow_mut().push(node);
+    //         } else {
+    //             match self.create_tree() {
+    //                 Ok(ok) => {
+    //                     if let Some(node) = ok {
+    //                         self.nodes.borrow_mut().push(node)
+    //                     }
+    //                 }
+    //                 Err(_) => panic!(""),
+    //             }
+
+    //             break;
+    //         }
+    //     }
+
+    //     writeln!(stdout(), "{:?}", self.nodes);
+    // }
 
     fn create_tree(&mut self) -> Result<Option<Node>, ()> {
         let mut buf_node: Option<Node> = None;
