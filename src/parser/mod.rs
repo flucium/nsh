@@ -2,8 +2,11 @@ mod lexer;
 mod token;
 use crate::parser::lexer::Lexer;
 use crate::parser::token::*;
+use std::borrow::BorrowMut;
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::io::stdout;
+use std::io::Write;
 use std::iter::Peekable;
 
 pub struct Parser {
@@ -19,63 +22,97 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Option<Node>, ()> {
+    pub fn parse(&mut self) {
         loop {
-            if self.lexer.next_if_eq(&Token::Pipe).is_some() {
-                self.nodes.borrow_mut().push(Node::Pipe(Pipe::new()));
+
+            if let Some(node)=self.parse_block(){
+                self.nodes.borrow_mut().push(node)
+            }
+            let node = match self.parse_command() {
+                Ok(ok) => ok,
+                Err(_) => panic!(""),
+            }
+            .or_else(|| self.parse_pipe());
+
+            if let Some(node) = node {
+                self.nodes.borrow_mut().push(node);
             } else {
-                match self.parse_command() {
-                    Ok(ok) => {
-                        if let Some(node) = ok {
-                            self.nodes.borrow_mut().push(node);
-                        } else {
-                            break;
+                match self.create_tree(){
+                    Ok(ok)=>{
+                        if let Some(node) = ok{
+                            self.nodes.borrow_mut().push(node)
                         }
                     }
-                    Err(_) => {}
+                    Err(_)=>panic!("")
                 }
+
+                break;   
             }
+
+
         }
 
-        self.create_tree()
+        writeln!(stdout(), "{:?}", self.nodes);
     }
 
     fn create_tree(&mut self) -> Result<Option<Node>, ()> {
         let mut buf_node: Option<Node> = None;
 
-        let (mut pipes, mut nodes): (VecDeque<_>, VecDeque<_>) = self
+        let (mut nodes, mut items): (VecDeque<_>, VecDeque<_>) = self
             .nodes
             .take()
             .into_iter()
-            .partition(|node| matches!(node, Node::Pipe(_)));
+            .partition(|node| matches!(node, Node::Pipe(_) | Node::Block(_)));
 
-        while let Some(node) = nodes.pop_front() {
-            if nodes.is_empty() {
-                buf_node = Some(node);
+        while let Some(item) = items.pop_front() {
+            if items.is_empty() {
+                buf_node = Some(item);
                 break;
             }
 
-            match pipes.pop_front() {
-                Some(pipe) => match pipe {
+            match nodes.pop_front() {
+                Some(node) => match node {
                     Node::Pipe(mut pipe) => {
-                        pipe.insert_left(node);
+                        pipe.insert_left(item);
 
-                        if let Some(node) = nodes.pop_front() {
-                            pipe.insert_right(node);
+                        if let Some(item) = items.pop_front() {
+                            pipe.insert_right(item);
                         }
                         buf_node = Some(Node::Pipe(pipe));
                     }
+
+                    Node::Block(mut block) => {
+                        block.insert_left(item);
+
+                        if let Some(item) = items.pop_front() {
+                            block.insert_right(item)
+                        }
+
+                        buf_node = Some(Node::Block(block))
+                    }
                     _ => {}
                 },
-                None => buf_node = Some(node),
+                None => buf_node = Some(item),
             }
 
             if let Some(node) = buf_node.take() {
-                nodes.push_front(node);
+                items.push_front(node);
             }
         }
 
         Ok(buf_node)
+    }
+
+    fn parse_block(&mut self) -> Option<Node> {
+        self.lexer
+            .next_if_eq(&Token::Semicolon)
+            .and(Some(Node::Block(Block::new())))
+    }
+
+    fn parse_pipe(&mut self) -> Option<Node> {
+        self.lexer
+            .next_if_eq(&Token::Pipe)
+            .and(Some(Node::Pipe(Pipe::new())))
     }
 
     fn parse_command(&mut self) -> Result<Option<Node>, ()> {
@@ -216,6 +253,7 @@ pub enum Node {
     Redirect(Redirect),
     Command(Command),
     Pipe(Pipe),
+    Block(Block),
     Background(bool),
 }
 
@@ -353,4 +391,42 @@ impl Pipe {
     pub fn right(&self) -> Option<&Node> {
         self.right.as_deref()
     }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct Block {
+    left: Option<Box<Node>>,
+    right: Option<Box<Node>>,
+}
+
+impl Block {
+    fn new() -> Self {
+        Self {
+            left: None,
+            right: None,
+        }
+    }
+
+    fn insert_left(&mut self, node: Node) {
+        self.left = Some(Box::new(node))
+    }
+
+    fn insert_right(&mut self, node: Node) {
+        self.right = Some(Box::new(node))
+    }
+
+    pub fn left(&self) -> Option<&Node> {
+        self.left.as_deref()
+    }
+
+    pub fn right(&self) -> Option<&Node> {
+        self.right.as_deref()
+    }
+}
+
+#[test]
+fn parser_test() {
+    let mut parser = Parser::new("ls | cat -b > output.txt ; echo hello".chars().collect());
+    parser.parse();
+    // writeln!(stdout(), "{:?}", parser.create_tree());
 }
