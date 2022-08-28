@@ -15,7 +15,3 @@ impl Cursor {
         };
     }
 }
-
-// pub enum Color{}
-
-// impl Color{}

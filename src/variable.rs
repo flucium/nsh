@@ -27,8 +27,4 @@ impl Variable {
             None => None,
         }
     }
-
-    // pub fn remove(&mut self, key: &str) {
-    //     self.0.remove(key);
-    // }
 }
