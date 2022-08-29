@@ -5,11 +5,7 @@ use crate::parser::lexer::Lexer;
 use crate::parser::token::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
-use std::fmt::format;
-use std::io::stdout;
-use std::io::Write;
 use std::iter::Peekable;
-
 
 #[derive(Debug)]
 pub struct Error {
@@ -72,43 +68,6 @@ impl Parser {
         Ok(self.nodes.get_mut().get(0))
     }
 
-    // pub fn parse(&mut self) -> Result<Option<&Node>, ()> {
-    //     loop {
-    //         let node = self.parse_block().or_else(|| {
-
-    //             match self.parse_vinsert() {
-    //                 Ok(ok) => ok,
-    //                 Err(err) => {
-    //                     panic!("")
-    //                 }
-    //             }
-    //             .or_else(|| match self.parse_command() {
-    //                 Ok(ok) => ok,
-    //                 Err(err) => panic!(""),
-    //             })
-    //             .or_else(|| self.parse_pipe())
-    //         });
-
-    //         match node {
-    //             Some(node) => self.nodes.borrow_mut().push(node),
-
-    //             None => {
-    //                 match self.create_tree() {
-    //                     Ok(ok) => {
-    //                         if let Some(node) = ok {
-    //                             self.nodes.borrow_mut().push(node)
-    //                         }
-    //                     }
-    //                     Err(err) => panic!(""),
-    //                 }
-
-    //                 break;
-    //             }
-    //         }
-    //     }
-
-    //     Ok(self.nodes.get_mut().get(0))
-    // }
 
     fn create_tree(&mut self) -> Result<Option<Node>, Error> {
         let mut buf_node: Option<Node> = None;
@@ -190,7 +149,7 @@ impl Parser {
         Ok(Some(Node::Command(command)))
     }
 
-    fn parse_command_prefix(&mut self) -> Result<Option<Node>,Error> {
+    fn parse_command_prefix(&mut self) -> Result<Option<Node>, Error> {
         Ok(self.parse_vreference()?.or(self.parse_string()))
     }
 
@@ -231,7 +190,7 @@ impl Parser {
         }
     }
 
-    fn parse_redirect(&mut self) -> Result<Option<Node>,Error> {
+    fn parse_redirect(&mut self) -> Result<Option<Node>, Error> {
         if !matches!(
             self.lexer.peek().unwrap_or(&Token::Semicolon),
             Token::Redirect(_)
@@ -242,14 +201,14 @@ impl Parser {
         let fd = match self.lexer.next() {
             Some(token) => match token {
                 Token::Redirect(n) => n,
-                _ =>  Err(Error::new("unknown error"))?,
+                _ => Err(Error::new("unknown error"))?,
             },
-            None =>  Err(Error::new("unknown error"))?,
+            None => Err(Error::new("unknown error"))?,
         };
 
         let string_node = match self.parse_string() {
             Some(node) => node,
-            None =>  Err(Error::new("file path to redirect to is not specified"))?,
+            None => Err(Error::new("file path to redirect to is not specified"))?,
         };
 
         Ok(Some(Node::Redirect(Redirect::new(fd.into(), string_node))))
@@ -263,27 +222,18 @@ impl Parser {
         match self.lexer.next() {
             Some(token) => match token {
                 Token::String(string) => Ok(Some(Node::VReference(string))),
-                _ => Err(Error::new("shell variable reference key token must be string"))?,
+                _ => Err(Error::new(
+                    "shell variable reference key token must be string",
+                ))?,
             },
             None => Err(Error::new("shell variable reference key not found")),
         }
     }
-    
 
     fn parse_vinsert(&mut self) -> Result<Option<Node>, Error> {
         if self.lexer.next_if_eq(&Token::Equal).is_none() {
             return Ok(None);
         }
-
-        // let node = self.parse_string().and_then(|key| {
-        //     self.parse_string().and_then(|val| {
-        //         let mut vinsert = VInsert::new();
-        //         vinsert.insert_key(key);
-        //         vinsert.insert_val(val);
-
-        //         Some(vinsert)
-        //     })
-        // });
 
         let key = match self.parse_string() {
             Some(key) => key,
@@ -384,7 +334,9 @@ impl Command {
 
     fn insert_prefix(&mut self, node: Node) -> Result<(), Error> {
         match node {
-            Node::Pipe(_) | Node::VInsert(_) | Node::Command(_) => Err(Error::new("some tokens cannot be passed as commands")),
+            Node::Pipe(_) | Node::VInsert(_) | Node::Command(_) => {
+                Err(Error::new("some tokens cannot be passed as commands"))
+            }
             _ => {
                 self.prefix = Some(Box::new(node));
                 Ok(())
