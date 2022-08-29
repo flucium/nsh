@@ -67,7 +67,6 @@ impl Parser {
         Ok(self.nodes.get_mut().get(0))
     }
 
-
     fn create_tree(&mut self) -> Result<Option<Node>, Error> {
         let mut buf_node: Option<Node> = None;
 
@@ -437,5 +436,4 @@ impl Block {
     //     pub fn right(&self) -> Option<&Node> {
     //         self.right.as_deref()
     //     }
-    // }
 }
