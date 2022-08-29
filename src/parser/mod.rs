@@ -1,6 +1,5 @@
 mod lexer;
 mod token;
-
 use crate::parser::lexer::Lexer;
 use crate::parser::token::*;
 use std::cell::RefCell;
@@ -272,14 +271,6 @@ pub enum Node {
     Pipe(Pipe),
     Block(Block),
     Background(bool),
-}
-
-impl Node {
-    // pub fn get(self) -> Node {
-    //     self
-    // }
-
-    // pub fn pop(&mut self) {}
 }
 
 #[derive(Debug, Eq, PartialEq)]
