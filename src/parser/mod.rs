@@ -1,12 +1,38 @@
 mod lexer;
 mod token;
+
 use crate::parser::lexer::Lexer;
 use crate::parser::token::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
+use std::fmt::format;
 use std::io::stdout;
 use std::io::Write;
 use std::iter::Peekable;
+
+
+#[derive(Debug)]
+pub struct Error {
+    message: String,
+    // tokens:[Token;3],
+}
+
+impl Error {
+    pub fn new(message: &str) -> Self {
+        Self {
+            message: String::from(message),
+            // tokens:tokens,
+        }
+    }
+
+    pub fn get(&self) -> &str {
+        &self.message
+    }
+
+    // pub fn get_detail(&self){
+
+    // }
+}
 
 pub struct Parser {
     lexer: Peekable<Lexer>,
@@ -21,34 +47,21 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Option<&Node>, ()> {
+    pub fn parse(&mut self) -> Result<Option<&Node>, Error> {
         loop {
-            let node = self.parse_block().or_else(|| {
-                
-                match self.parse_vinsert() {
-                    Ok(ok) => ok,
-                    Err(err) => {
-                        panic!("")
-                    }
-                }
-                .or_else(|| match self.parse_command() {
-                    Ok(ok) => ok,
-                    Err(err) => panic!(""),
-                })
-                .or_else(|| self.parse_pipe())
-            });
+            let node = match self.parse_block() {
+                Some(node) => Some(node),
+                None => self
+                    .parse_vinsert()?
+                    .or(self.parse_command()?)
+                    .or_else(|| self.parse_pipe()),
+            };
 
             match node {
                 Some(node) => self.nodes.borrow_mut().push(node),
-
                 None => {
-                    match self.create_tree() {
-                        Ok(ok) => {
-                            if let Some(node) = ok {
-                                self.nodes.borrow_mut().push(node)
-                            }
-                        }
-                        Err(err) => panic!(""),
+                    if let Some(node) = self.create_tree()? {
+                        self.nodes.borrow_mut().push(node)
                     }
 
                     break;
@@ -59,7 +72,45 @@ impl Parser {
         Ok(self.nodes.get_mut().get(0))
     }
 
-    fn create_tree(&mut self) -> Result<Option<Node>, ()> {
+    // pub fn parse(&mut self) -> Result<Option<&Node>, ()> {
+    //     loop {
+    //         let node = self.parse_block().or_else(|| {
+
+    //             match self.parse_vinsert() {
+    //                 Ok(ok) => ok,
+    //                 Err(err) => {
+    //                     panic!("")
+    //                 }
+    //             }
+    //             .or_else(|| match self.parse_command() {
+    //                 Ok(ok) => ok,
+    //                 Err(err) => panic!(""),
+    //             })
+    //             .or_else(|| self.parse_pipe())
+    //         });
+
+    //         match node {
+    //             Some(node) => self.nodes.borrow_mut().push(node),
+
+    //             None => {
+    //                 match self.create_tree() {
+    //                     Ok(ok) => {
+    //                         if let Some(node) = ok {
+    //                             self.nodes.borrow_mut().push(node)
+    //                         }
+    //                     }
+    //                     Err(err) => panic!(""),
+    //                 }
+
+    //                 break;
+    //             }
+    //         }
+    //     }
+
+    //     Ok(self.nodes.get_mut().get(0))
+    // }
+
+    fn create_tree(&mut self) -> Result<Option<Node>, Error> {
         let mut buf_node: Option<Node> = None;
 
         let (mut nodes, mut items): (VecDeque<_>, VecDeque<_>) = self
@@ -119,7 +170,7 @@ impl Parser {
             .and(Some(Node::Pipe(Pipe::new())))
     }
 
-    fn parse_command(&mut self) -> Result<Option<Node>, ()> {
+    fn parse_command(&mut self) -> Result<Option<Node>, Error> {
         let prefix = match self.parse_vreference()?.or(self.parse_string()) {
             Some(prefix) => prefix,
             None => return Ok(None),
@@ -139,11 +190,11 @@ impl Parser {
         Ok(Some(Node::Command(command)))
     }
 
-    fn parse_command_prefix(&mut self) -> Result<Option<Node>, ()> {
+    fn parse_command_prefix(&mut self) -> Result<Option<Node>,Error> {
         Ok(self.parse_vreference()?.or(self.parse_string()))
     }
 
-    fn parse_command_suffix(&mut self) -> Result<CommandSuffix, ()> {
+    fn parse_command_suffix(&mut self) -> Result<CommandSuffix, Error> {
         let mut suffix = CommandSuffix::new();
 
         loop {
@@ -180,7 +231,7 @@ impl Parser {
         }
     }
 
-    fn parse_redirect(&mut self) -> Result<Option<Node>, ()> {
+    fn parse_redirect(&mut self) -> Result<Option<Node>,Error> {
         if !matches!(
             self.lexer.peek().unwrap_or(&Token::Semicolon),
             Token::Redirect(_)
@@ -191,20 +242,20 @@ impl Parser {
         let fd = match self.lexer.next() {
             Some(token) => match token {
                 Token::Redirect(n) => n,
-                _ => return Err(()),
+                _ =>  Err(Error::new("unknown error"))?,
             },
-            None => return Err(()),
+            None =>  Err(Error::new("unknown error"))?,
         };
 
         let string_node = match self.parse_string() {
             Some(node) => node,
-            None => return Err(()),
+            None =>  Err(Error::new("file path to redirect to is not specified"))?,
         };
 
         Ok(Some(Node::Redirect(Redirect::new(fd.into(), string_node))))
     }
 
-    fn parse_vreference(&mut self) -> Result<Option<Node>, ()> {
+    fn parse_vreference(&mut self) -> Result<Option<Node>, Error> {
         if self.lexer.next_if_eq(&Token::Reference).is_none() {
             return Ok(None);
         }
@@ -212,31 +263,43 @@ impl Parser {
         match self.lexer.next() {
             Some(token) => match token {
                 Token::String(string) => Ok(Some(Node::VReference(string))),
-                _ => Err(()),
+                _ => Err(Error::new("shell variable reference key token must be string"))?,
             },
-            None => Err(()),
+            None => Err(Error::new("shell variable reference key not found")),
         }
     }
+    
 
-    fn parse_vinsert(&mut self) -> Result<Option<Node>, ()> {
+    fn parse_vinsert(&mut self) -> Result<Option<Node>, Error> {
         if self.lexer.next_if_eq(&Token::Equal).is_none() {
             return Ok(None);
         }
 
-        let node = self.parse_string().and_then(|key| {
-            self.parse_string().and_then(|val| {
-                let mut vinsert = VInsert::new();
-                vinsert.insert_key(key);
-                vinsert.insert_val(val);
+        // let node = self.parse_string().and_then(|key| {
+        //     self.parse_string().and_then(|val| {
+        //         let mut vinsert = VInsert::new();
+        //         vinsert.insert_key(key);
+        //         vinsert.insert_val(val);
 
-                Some(vinsert)
-            })
-        });
+        //         Some(vinsert)
+        //     })
+        // });
 
-        match node {
-            Some(node) => Ok(Some(Node::VInsert(node))),
-            None => Err(()),
-        }
+        let key = match self.parse_string() {
+            Some(key) => key,
+            None => Err(Error::new("shell variable key not found"))?,
+        };
+
+        let val = match self.parse_string() {
+            Some(val) => val,
+            None => Err(Error::new("shell variable val not found"))?,
+        };
+
+        let mut node = VInsert::new();
+        node.insert_key(key);
+        node.insert_val(val);
+
+        Ok(Some(Node::VInsert(node)))
     }
 
     fn parse_string(&mut self) -> Option<Node> {
@@ -262,9 +325,11 @@ pub enum Node {
 }
 
 impl Node {
-    pub fn get(self) -> Node {
-        self
-    }
+    // pub fn get(self) -> Node {
+    //     self
+    // }
+
+    // pub fn pop(&mut self) {}
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -316,9 +381,10 @@ impl Command {
             suffix: None,
         }
     }
-    fn insert_prefix(&mut self, node: Node) -> Result<(), ()> {
+
+    fn insert_prefix(&mut self, node: Node) -> Result<(), Error> {
         match node {
-            Node::Pipe(_) | Node::VInsert(_) | Node::Command(_) => Err(()),
+            Node::Pipe(_) | Node::VInsert(_) | Node::Command(_) => Err(Error::new("some tokens cannot be passed as commands")),
             _ => {
                 self.prefix = Some(Box::new(node));
                 Ok(())
@@ -343,9 +409,11 @@ impl CommandSuffix {
         }
     }
 
-    fn insert(&mut self, node: Node) -> Result<(), ()> {
+    fn insert(&mut self, node: Node) -> Result<(), Error> {
         match node {
-            Node::Pipe(_) | Node::VInsert(_) | Node::Command(_) => Err(()),
+            Node::Pipe(_) | Node::VInsert(_) | Node::Command(_) => Err(Error::new(
+                "there is a token that cannot be passed as a command argument",
+            )),
 
             _ => {
                 if self.v.is_none() {
@@ -419,11 +487,12 @@ impl Block {
         self.right = Some(Box::new(node))
     }
 
-    pub fn left(&self) -> Option<&Node> {
-        self.left.as_deref()
-    }
+    //     pub fn left(&self) -> Option<&Node> {
+    //         self.left.as_deref()
+    //     }
 
-    pub fn right(&self) -> Option<&Node> {
-        self.right.as_deref()
-    }
+    //     pub fn right(&self) -> Option<&Node> {
+    //         self.right.as_deref()
+    //     }
+    // }
 }
