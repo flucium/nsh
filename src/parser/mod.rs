@@ -35,9 +35,10 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(input: VecDeque<char>) -> Self {
+    // pub fn new(input: VecDeque<char>) -> Self {
+    pub fn new(lexer:Lexer) -> Self {
         Self {
-            lexer: Lexer::new(input).peekable(),
+            lexer: lexer.peekable(),
             nodes: RefCell::new(Vec::new()),
         }
     }
@@ -102,6 +103,7 @@ impl Parser {
 
                         buf_node = Some(Node::Block(block))
                     }
+
                     _ => {}
                 },
                 None => buf_node = Some(item),
