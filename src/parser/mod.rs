@@ -1,4 +1,4 @@
-mod lexer;
+pub mod lexer;
 mod token;
 use crate::parser::lexer::Lexer;
 use crate::parser::token::*;
@@ -28,6 +28,8 @@ impl Error {
 
     // }
 }
+
+
 
 pub struct Parser {
     lexer: Peekable<Lexer>,
