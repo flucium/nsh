@@ -5,6 +5,7 @@ use crate::parser::token::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::iter::Peekable;
+use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Error {
@@ -29,8 +30,6 @@ impl Error {
     // }
 }
 
-
-
 pub struct Parser {
     lexer: Peekable<Lexer>,
     nodes: RefCell<Vec<Node>>,
@@ -38,7 +37,7 @@ pub struct Parser {
 
 impl Parser {
     // pub fn new(input: VecDeque<char>) -> Self {
-    pub fn new(lexer:Lexer) -> Self {
+    pub fn new(lexer: Lexer) -> Self {
         Self {
             lexer: lexer.peekable(),
             nodes: RefCell::new(Vec::new()),
@@ -272,7 +271,7 @@ pub enum Node {
     Redirect(Redirect),
     Command(Command),
     Pipe(Pipe),
-    Block(Block),
+    // Block(Block),
     Background(bool),
 }
 
@@ -344,8 +343,8 @@ impl Command {
 }
 #[derive(Debug, Eq, PartialEq)]
 struct CommandSuffix {
-    v: Option<Box<Node>>,
-    suffix: Option<Box<CommandSuffix>>,
+    v: Option<Rc<Node>>,
+    suffix: Option<Rc<CommandSuffix>>,
 }
 impl CommandSuffix {
     fn new() -> Self {
@@ -362,17 +361,17 @@ impl CommandSuffix {
             )),
 
             _ => {
-                if self.v.is_none() {
-                    self.v = Some(Box::new(node))
-                } else {
+                if self.v.is_some() {
                     if let Some(suffix) = &mut self.suffix {
                         suffix.insert(node)?
                     } else {
-                        self.suffix = Some(Box::new(CommandSuffix {
-                            v: Some(Box::new(node)),
+                        self.suffix = Some(Rc::new(CommandSuffix {
+                            v: Some(Rc::new(node)),
                             suffix: None,
                         }));
                     }
+                } else {
+                    self.v = Some(Rc::new(node))
                 }
 
                 Ok(())
@@ -382,8 +381,8 @@ impl CommandSuffix {
 }
 #[derive(Debug, Eq, PartialEq)]
 pub struct Pipe {
-    left: Option<Box<Node>>,
-    right: Option<Box<Node>>,
+    left: Option<Rc<Node>>,
+    right: Option<Rc<Node>>,
 }
 
 impl Pipe {
@@ -395,19 +394,11 @@ impl Pipe {
     }
 
     fn insert_left(&mut self, node: Node) {
-        self.left = Some(Box::new(node))
+        self.left = Some(Rc::new(node))
     }
 
     fn insert_right(&mut self, node: Node) {
-        self.right = Some(Box::new(node))
-    }
-
-    pub fn left(&self) -> Option<&Node> {
-        self.left.as_deref()
-    }
-
-    pub fn right(&self) -> Option<&Node> {
-        self.right.as_deref()
+        self.right = Some(Rc::new(node))
     }
 }
 
