@@ -1,6 +1,6 @@
 use crate::ansi;
 use crate::builtin;
-use crate::parser;
+use crate::parser::{lexer::Lexer, Error, Node, Parser};
 use crate::prompt;
 use crate::variable::Variable;
 use std::env;
@@ -70,18 +70,19 @@ impl Shell {
     }
 
     fn rep(&mut self) {
-        // self.update_prompt();
+        self.update_prompt();
 
-        // if let Some(string) = self.read_line() {
-        //     let node_list = parse(&string);
+        if let Some(string) = self.read_line() {
+            parse(&string);
+            // let node_list = parse(&string);
 
-        //     if let Err(err) = self.eval(node_list) {
-        //         io::stderr()
-        //             .lock()
-        //             .write_all(format!("{}", err).as_bytes())
-        //             .unwrap();
-        //     }
-        // }
+            // if let Err(err) = self.eval(node_list) {
+            //     io::stderr()
+            //         .lock()
+            //         .write_all(format!("{}", err).as_bytes())
+            //         .unwrap();
+            // }
+        }
     }
 
     fn read_line(&mut self) -> Option<String> {
@@ -265,6 +266,21 @@ impl Shell {
         }
     }
 
+    fn eval(&mut self) {
+        let mut parser = Parser::new(Lexer::new("ls".chars().collect()));
+
+        let mut node = parser.parse().unwrap().unwrap();
+
+        match node {
+            Node::Pipe(pipe) => {}
+
+            Node::Command(command) => {
+                println!("{:?}", command);
+            }
+            _ => {}
+        }
+    }
+
     // fn eval(&mut self, mut node_list: parser::NodeList) -> io::Result<()> {
     //     while let Some(node) = node_list.pop() {
     //         match node {
@@ -325,8 +341,6 @@ impl Shell {
     //                     "cd" => {
     //                         builtin::cd(args.get(0).unwrap_or(&String::from("./"))).unwrap();
     //                     }
-
-                    
 
     //                     _ => match process::Command::new(program.clone())
     //                         .args(args)
@@ -411,6 +425,13 @@ impl Shell {
 
 //     parser.parse()
 // }
+
+fn parse(source: &str) {
+
+    let mut parser = Parser::new(Lexer::new(source.chars().collect()));
+
+    println!("{:?}",parser.parse());
+}
 
 struct Profile(ProfileKind);
 
