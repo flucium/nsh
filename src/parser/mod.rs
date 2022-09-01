@@ -45,79 +45,79 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Option<&Node>, Error> {
-        loop {
-            let node = match self.parse_block() {
-                Some(node) => Some(node),
-                None => self
-                    .parse_vinsert()?
-                    .or(self.parse_command()?)
-                    .or_else(|| self.parse_pipe()),
-            };
+    // pub fn parse(&mut self) -> Result<Option<&Node>, Error> {
+    //     loop {
+    //         let node = match self.parse_block() {
+    //             Some(node) => Some(node),
+    //             None => self
+    //                 .parse_vinsert()?
+    //                 .or(self.parse_command()?)
+    //                 .or_else(|| self.parse_pipe()),
+    //         };
 
-            match node {
-                Some(node) => self.nodes.borrow_mut().push(node),
-                None => {
-                    if let Some(node) = self.create_tree()? {
-                        self.nodes.borrow_mut().push(node)
-                    }
+    //         match node {
+    //             Some(node) => self.nodes.borrow_mut().push(node),
+    //             None => {
+    //                 if let Some(node) = self.create_tree()? {
+    //                     self.nodes.borrow_mut().push(node)
+    //                 }
 
-                    break;
-                }
-            }
-        }
+    //                 break;
+    //             }
+    //         }
+    //     }
 
-        Ok(self.nodes.get_mut().get(0))
-    }
+    //     Ok(self.nodes.get_mut().get(0))
+    // }
 
-    fn create_tree(&mut self) -> Result<Option<Node>, Error> {
-        let mut buf_node: Option<Node> = None;
+    // fn create_tree(&mut self) -> Result<Option<Node>, Error> {
+    //     let mut buf_node: Option<Node> = None;
 
-        let (mut nodes, mut items): (VecDeque<_>, VecDeque<_>) = self
-            .nodes
-            .take()
-            .into_iter()
-            .partition(|node| matches!(node, Node::Pipe(_) | Node::Block(_)));
+    //     let (mut nodes, mut items): (VecDeque<_>, VecDeque<_>) = self
+    //         .nodes
+    //         .take()
+    //         .into_iter()
+    //         .partition(|node| matches!(node, Node::Pipe(_) | Node::Block(_)));
 
-        while let Some(item) = items.pop_front() {
-            if items.is_empty() {
-                buf_node = Some(item);
-                break;
-            }
+    //     while let Some(item) = items.pop_front() {
+    //         if items.is_empty() {
+    //             buf_node = Some(item);
+    //             break;
+    //         }
 
-            match nodes.pop_front() {
-                Some(node) => match node {
-                    Node::Pipe(mut pipe) => {
-                        pipe.insert_left(item);
+    //         match nodes.pop_front() {
+    //             Some(node) => match node {
+    //                 Node::Pipe(mut pipe) => {
+    //                     pipe.insert_left(item);
 
-                        if let Some(item) = items.pop_front() {
-                            pipe.insert_right(item);
-                        }
-                        buf_node = Some(Node::Pipe(pipe));
-                    }
+    //                     if let Some(item) = items.pop_front() {
+    //                         pipe.insert_right(item);
+    //                     }
+    //                     buf_node = Some(Node::Pipe(pipe));
+    //                 }
 
-                    Node::Block(mut block) => {
-                        block.insert_left(item);
+    //                 Node::Block(mut block) => {
+    //                     block.insert_left(item);
 
-                        if let Some(item) = items.pop_front() {
-                            block.insert_right(item)
-                        }
+    //                     if let Some(item) = items.pop_front() {
+    //                         block.insert_right(item)
+    //                     }
 
-                        buf_node = Some(Node::Block(block))
-                    }
+    //                     buf_node = Some(Node::Block(block))
+    //                 }
 
-                    _ => {}
-                },
-                None => buf_node = Some(item),
-            }
+    //                 _ => {}
+    //             },
+    //             None => buf_node = Some(item),
+    //         }
 
-            if let Some(node) = buf_node.take() {
-                items.push_front(node);
-            }
-        }
+    //         if let Some(node) = buf_node.take() {
+    //             items.push_front(node);
+    //         }
+    //     }
 
-        Ok(buf_node)
-    }
+    //     Ok(buf_node)
+    // }
 
     fn parse_block(&mut self) -> Option<Node> {
         self.lexer
@@ -411,33 +411,26 @@ impl Pipe {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct Block {
-    left: Option<Box<Node>>,
-    right: Option<Box<Node>>,
-}
+// #[derive(Debug, Eq, PartialEq)]
+// pub struct Block {
+//     left: Option<Box<Node>>,
+//     right: Option<Box<Node>>,
+// }
 
-impl Block {
-    fn new() -> Self {
-        Self {
-            left: None,
-            right: None,
-        }
-    }
+// impl Block {
+//     fn new() -> Self {
+//         Self {
+//             left: None,
+//             right: None,
+//         }
+//     }
 
-    fn insert_left(&mut self, node: Node) {
-        self.left = Some(Box::new(node))
-    }
+//     fn insert_left(&mut self, node: Node) {
+//         self.left = Some(Box::new(node))
+//     }
 
-    fn insert_right(&mut self, node: Node) {
-        self.right = Some(Box::new(node))
-    }
+//     fn insert_right(&mut self, node: Node) {
+//         self.right = Some(Box::new(node))
+//     }
 
-    //     pub fn left(&self) -> Option<&Node> {
-    //         self.left.as_deref()
-    //     }
-
-    //     pub fn right(&self) -> Option<&Node> {
-    //         self.right.as_deref()
-    //     }
-}
+// }
