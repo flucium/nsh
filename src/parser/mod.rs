@@ -19,9 +19,9 @@ impl Error {
         }
     }
 
-    pub fn get(&self) -> &str {
-        &self.message
-    }
+    // pub fn get(&self) -> &str {
+    //     &self.message
+    // }
 
     // pub fn get_detail(&self){
 
@@ -83,9 +83,7 @@ impl Parser {
             }
         }
 
-        
         Ok(tree)
-
     }
 
     fn parse_pipe(&mut self) -> Option<Node> {
@@ -237,6 +235,19 @@ pub enum Node {
     Background(bool),
 }
 
+impl Node {
+    pub fn pop(&mut self) -> Option<Node> {
+        match self {
+            Node::Pipe(pipe) => return pipe.pop(),
+
+            Node::Command(command) => return command.pop_prefix(),
+            _ => {}
+        }
+
+        None
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 struct VInsert {
     key: Option<Box<Node>>,
@@ -302,6 +313,17 @@ impl Command {
     fn insert_suffix(&mut self, suffix: CommandSuffix) {
         self.suffix = Some(suffix);
     }
+
+    fn pop_prefix(&mut self) -> Option<Node> {
+        match self.prefix.take() {
+            Some(prefix) => Some(*prefix),
+            None => None,
+        }
+    }
+
+    fn pop_suffix(&mut self) -> Option<CommandSuffix> {
+        self.suffix.take()
+    }
 }
 #[derive(Debug, Eq, PartialEq)]
 struct CommandSuffix {
@@ -340,6 +362,18 @@ impl CommandSuffix {
             }
         }
     }
+
+    fn pop(&mut self) -> Option<Box<Node>> {
+        if let Some(v) = self.v.take() {
+            Some(v)
+        } else {
+            if let Some(suffix) = self.suffix.as_mut() {
+                suffix.pop()
+            } else {
+                None
+            }
+        }
+    }
 }
 #[derive(Debug, Eq, PartialEq)]
 struct Pipe {
@@ -362,4 +396,27 @@ impl Pipe {
     fn insert_right(&mut self, node: Node) {
         self.right = Some(Box::new(node))
     }
+
+    fn pop(&mut self) -> Option<Node> {
+        if let Some(left) = self.left.take() {
+            return Some(*left);
+        } else if let Some(right) = self.right.take() {
+            return Some(*right);
+        } else {
+            None
+        }
+    }
+}
+
+#[test]
+fn parser_test() {
+    let mut node = Parser::new(Lexer::new(
+        "ls -a ~ | rev | rev | cat -b > output.txt"
+            .chars()
+            .collect(),
+    ))
+    .parse();
+
+    
+
 }
