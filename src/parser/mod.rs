@@ -2,7 +2,6 @@ pub mod lexer;
 mod token;
 use crate::parser::lexer::Lexer;
 use crate::parser::token::*;
-use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::iter::Peekable;
 
@@ -31,14 +30,12 @@ impl Error {
 
 pub struct Parser {
     lexer: Peekable<Lexer>,
-    nodes: RefCell<Vec<Node>>,
 }
 
 impl Parser {
     pub fn new(lexer: Lexer) -> Self {
         Self {
             lexer: lexer.peekable(),
-            nodes: RefCell::new(Vec::new()),
         }
     }
 
