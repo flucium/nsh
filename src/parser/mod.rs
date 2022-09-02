@@ -5,7 +5,6 @@ use crate::parser::token::*;
 use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::iter::Peekable;
-use std::rc::Rc;
 
 #[derive(Debug)]
 pub struct Error {
@@ -36,7 +35,6 @@ pub struct Parser {
 }
 
 impl Parser {
-    // pub fn new(input: VecDeque<char>) -> Self {
     pub fn new(lexer: Lexer) -> Self {
         Self {
             lexer: lexer.peekable(),
@@ -44,84 +42,53 @@ impl Parser {
         }
     }
 
-    // pub fn parse(&mut self) -> Result<Option<&Node>, Error> {
-    //     loop {
-    //         let node = match self.parse_block() {
-    //             Some(node) => Some(node),
-    //             None => self
-    //                 .parse_vinsert()?
-    //                 .or(self.parse_command()?)
-    //                 .or_else(|| self.parse_pipe()),
-    //         };
+    pub fn parse(&mut self) -> Result<Option<Node>, Error> {
+        let mut nodes = Vec::new();
 
-    //         match node {
-    //             Some(node) => self.nodes.borrow_mut().push(node),
-    //             None => {
-    //                 if let Some(node) = self.create_tree()? {
-    //                     self.nodes.borrow_mut().push(node)
-    //                 }
+        while let Some(node) = match self.parse_pipe() {
+            Some(node) => Some(node),
+            None => self.parse_vinsert()?.or(self.parse_command()?),
+        } {
+            nodes.push(node)
+        }
 
-    //                 break;
-    //             }
-    //         }
-    //     }
+        let mut tree = None;
 
-    //     Ok(self.nodes.get_mut().get(0))
-    // }
+        let (mut nodes, mut items): (VecDeque<_>, VecDeque<_>) = nodes
+            .into_iter()
+            .partition(|node| matches!(node, Node::Pipe(_)));
 
-    // fn create_tree(&mut self) -> Result<Option<Node>, Error> {
-    //     let mut buf_node: Option<Node> = None;
+        while let Some(item) = items.pop_front() {
+            if items.is_empty() {
+                tree = Some(item);
+                break;
+            }
 
-    //     let (mut nodes, mut items): (VecDeque<_>, VecDeque<_>) = self
-    //         .nodes
-    //         .take()
-    //         .into_iter()
-    //         .partition(|node| matches!(node, Node::Pipe(_) | Node::Block(_)));
+            match nodes.pop_front() {
+                Some(node) => match node {
+                    Node::Pipe(mut pipe) => {
+                        pipe.insert_left(item);
 
-    //     while let Some(item) = items.pop_front() {
-    //         if items.is_empty() {
-    //             buf_node = Some(item);
-    //             break;
-    //         }
+                        if let Some(item) = items.pop_front() {
+                            pipe.insert_right(item);
+                        }
+                        tree = Some(Node::Pipe(pipe));
+                    }
 
-    //         match nodes.pop_front() {
-    //             Some(node) => match node {
-    //                 Node::Pipe(mut pipe) => {
-    //                     pipe.insert_left(item);
+                    _ => {}
+                },
 
-    //                     if let Some(item) = items.pop_front() {
-    //                         pipe.insert_right(item);
-    //                     }
-    //                     buf_node = Some(Node::Pipe(pipe));
-    //                 }
+                None => tree = Some(item),
+            }
 
-    //                 Node::Block(mut block) => {
-    //                     block.insert_left(item);
+            if let Some(node) = tree.take() {
+                items.push_front(node);
+            }
+        }
 
-    //                     if let Some(item) = items.pop_front() {
-    //                         block.insert_right(item)
-    //                     }
+        
+        Ok(tree)
 
-    //                     buf_node = Some(Node::Block(block))
-    //                 }
-
-    //                 _ => {}
-    //             },
-    //             None => buf_node = Some(item),
-    //         }
-
-    //         if let Some(node) = buf_node.take() {
-    //             items.push_front(node);
-    //         }
-    //     }
-
-    //     Ok(buf_node)
-    // }
-
-    fn parse_block(&mut self) -> Option<Node> {
-        self.lexer
-            .next_if_eq(&Token::Semicolon)
-            .and(Some(Node::Block(Block::new())))
     }
 
     fn parse_pipe(&mut self) -> Option<Node> {
@@ -265,13 +232,11 @@ impl Parser {
 #[derive(Debug, Eq, PartialEq)]
 pub enum Node {
     String(String),
-    // Number(usize),
     VReference(String),
     VInsert(VInsert),
     Redirect(Redirect),
     Command(Command),
     Pipe(Pipe),
-    // Block(Block),
     Background(bool),
 }
 
@@ -343,8 +308,8 @@ impl Command {
 }
 #[derive(Debug, Eq, PartialEq)]
 struct CommandSuffix {
-    v: Option<Rc<Node>>,
-    suffix: Option<Rc<CommandSuffix>>,
+    v: Option<Box<Node>>,
+    suffix: Option<Box<CommandSuffix>>,
 }
 impl CommandSuffix {
     fn new() -> Self {
@@ -363,15 +328,15 @@ impl CommandSuffix {
             _ => {
                 if self.v.is_some() {
                     if let Some(suffix) = &mut self.suffix {
-                        suffix.insert(node)?
+                        suffix.insert(node)?;
                     } else {
-                        self.suffix = Some(Rc::new(CommandSuffix {
-                            v: Some(Rc::new(node)),
+                        self.suffix = Some(Box::new(CommandSuffix {
+                            v: Some(Box::new(node)),
                             suffix: None,
                         }));
                     }
                 } else {
-                    self.v = Some(Rc::new(node))
+                    self.v = Some(Box::new(node))
                 }
 
                 Ok(())
@@ -380,9 +345,9 @@ impl CommandSuffix {
     }
 }
 #[derive(Debug, Eq, PartialEq)]
-pub struct Pipe {
-    left: Option<Rc<Node>>,
-    right: Option<Rc<Node>>,
+struct Pipe {
+    left: Option<Box<Node>>,
+    right: Option<Box<Node>>,
 }
 
 impl Pipe {
@@ -394,34 +359,10 @@ impl Pipe {
     }
 
     fn insert_left(&mut self, node: Node) {
-        self.left = Some(Rc::new(node))
+        self.left = Some(Box::new(node))
     }
 
     fn insert_right(&mut self, node: Node) {
-        self.right = Some(Rc::new(node))
+        self.right = Some(Box::new(node))
     }
 }
-
-// #[derive(Debug, Eq, PartialEq)]
-// pub struct Block {
-//     left: Option<Box<Node>>,
-//     right: Option<Box<Node>>,
-// }
-
-// impl Block {
-//     fn new() -> Self {
-//         Self {
-//             left: None,
-//             right: None,
-//         }
-//     }
-
-//     fn insert_left(&mut self, node: Node) {
-//         self.left = Some(Box::new(node))
-//     }
-
-//     fn insert_right(&mut self, node: Node) {
-//         self.right = Some(Box::new(node))
-//     }
-
-// }
