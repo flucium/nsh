@@ -28,6 +28,12 @@ impl Error {
     // }
 }
 
+impl ToString for Error{
+    fn to_string(&self) -> String {
+        self.message.to_string()
+    }
+}
+
 pub struct Parser {
     lexer: Peekable<Lexer>,
 }
