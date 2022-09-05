@@ -1,5 +1,7 @@
 use crate::ansi;
 use crate::builtin;
+use crate::parser::Command;
+use crate::parser::Redirect;
 use crate::parser::{lexer::Lexer, Error, Node, Parser};
 use crate::prompt;
 use crate::variable::Variable;
@@ -10,6 +12,8 @@ use std::io::Read;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process;
+use std::process::CommandArgs;
+use std::result;
 
 pub struct Shell {
     prompt: String,
@@ -49,11 +53,11 @@ impl Shell {
             }
         };
 
-        // for line in profile.split("\n") {
-        //     if let Err(err) = self.eval(parse(line)) {
-        //         panic!("{err}")
-        //     }
-        // }
+        for line in profile.split("\n") {
+            if let Some(node) = parse(line) {
+                self.eval(node);
+            }
+        }
     }
 
     fn update_prompt(&mut self) {
@@ -73,15 +77,9 @@ impl Shell {
         self.update_prompt();
 
         if let Some(string) = self.read_line() {
-            parse(&string);
-            // let node_list = parse(&string);
-
-            // if let Err(err) = self.eval(node_list) {
-            //     io::stderr()
-            //         .lock()
-            //         .write_all(format!("{}", err).as_bytes())
-            //         .unwrap();
-            // }
+            if let Some(node) = parse(&string) {
+                self.eval(node);
+            }
         }
     }
 
@@ -266,20 +264,342 @@ impl Shell {
         }
     }
 
-    fn eval(&mut self) {
-        let mut parser = Parser::new(Lexer::new("ls".chars().collect()));
-
-        let mut node = parser.parse().unwrap().unwrap();
-
+    fn eval(&mut self, node: Node) {
         match node {
-            Node::Pipe(pipe) => {}
+            Node::Pipe(mut pipe) => {
+                if let Some(left) = pipe.left() {
+                    if matches!(*left, Node::Pipe(_)) {
+                        self.eval(*left);
+                    } else {
+                        match *left {
+                            Node::Command(command) => {}
+                            _ => {}
+                        }
+                    }
+                }
 
-            Node::Command(command) => {
-                println!("{:?}", command);
+                if let Some(right) = pipe.right() {
+                    if matches!(*right, Node::Pipe(_)) {
+                        self.eval(*right);
+                    } else {
+                        match *right {
+                            Node::Command(command) => {}
+                            _ => {}
+                        }
+                    }
+                }
             }
+
+            Node::Command(command) => {}
+
+            Node::VInsert(mut vinsert) => {
+                let key = match vinsert.key() {
+                    Some(key) => match *key {
+                        Node::String(string) => string,
+                        _ => return,
+                    },
+                    None => return,
+                };
+
+                let val = match vinsert.val() {
+                    Some(val) => match *val {
+                        Node::String(string) => string,
+                        _ => return,
+                    },
+                    None => return,
+                };
+
+                self.variable.insert(&key, &val);
+            }
+
             _ => {}
         }
     }
+
+    // fn eval(&mut self, node: Node) {
+
+    //     self.commands.pop();
+
+    //     match node {
+    //         Node::Pipe(mut pipe) => {
+    //             if let Some(left) = pipe.left() {
+    //                 if matches!(*left, Node::Pipe(_)) {
+    //                     self.eval(*left);
+    //                 } else {
+    //                     match *left {
+    //                         Node::Command(command) => {
+    //                             if let Some(command)=self.create_command(command){
+    //                                 self.commands.push(command)
+    //                             }
+
+    //                         }
+    //                         _ => {}
+    //                     }
+    //                 }
+    //             }
+
+    //             if let Some(right) = pipe.right() {
+    //                 if matches!(*right, Node::Pipe(_)) {
+    //                     self.eval(*right);
+    //                 } else {
+    //                     match *right {
+    //                         Node::Command(command) => {
+    //                             if let Some(command)=self.create_command(command){
+    //                                 self.commands.push(command)
+    //                             }
+    //                         }
+    //                         _ => {}
+    //                     }
+    //                 }
+    //             }
+    //         }
+
+    //         Node::Command(command) => {
+    //             if let Some(command)=self.create_command(command){
+    //                 self.commands.push(command)
+    //             }
+    //         }
+
+    //         Node::VInsert(mut vinsert) => {
+    //             let key = match vinsert.key() {
+    //                 Some(key) => match *key {
+    //                     Node::String(string) => string,
+    //                     _ => return,
+    //                 },
+    //                 None => return,
+    //             };
+
+    //             let val = match vinsert.val() {
+    //                 Some(val) => match *val {
+    //                     Node::String(string) => string,
+    //                     _ => return,
+    //                 },
+    //                 None => return,
+    //             };
+
+    //             self.variable.insert(&key, &val);
+    //         }
+
+    //         _ => {}
+    //     }
+
+    // }
+
+    // fn create_command(&mut self, mut command: Command) -> Option<process::Command> {
+    //     let (mut program, mut args, mut redirect, mut background): (
+    //         String,
+    //         Vec<String>,
+    //         (Option<String>, Option<String>, Option<String>),
+    //         bool,
+    //     ) = (String::new(), Vec::new(), (None, None, None), false);
+
+    //     if let Some(prefix) = command.prefix() {
+    //         match *prefix {
+    //             Node::String(string) => {
+    //                 program = string;
+    //             }
+    //             Node::VReference(key) => {
+    //                 program = self.variable.get(&key).unwrap_or_default();
+    //             }
+    //             _ => return None,
+    //         }
+    //     } else {
+    //         return None;
+    //     }
+
+    //     if let Some(mut suffix) = command.suffix() {
+    //         while let Some(node) = suffix.pop() {
+    //             match node {
+    //                 Node::String(string) => args.push(string),
+    //                 Node::VReference(key) => {
+    //                     if let Some(val) = self.variable.get(&key) {
+    //                         args.push(val);
+    //                     }
+    //                 }
+    //                 Node::Redirect(rd) => match rd.file().as_ref() {
+    //                     Node::String(string) => match rd.fd() {
+    //                         0 => redirect.0 = Some(string.to_string()),
+    //                         1 => redirect.1 = Some(string.to_string()),
+    //                         2 => redirect.2 = Some(string.to_string()),
+    //                         _ => continue,
+    //                     },
+    //                     _ => continue,
+    //                 },
+    //                 Node::Background(_) => background = true,
+    //                 _ => {}
+    //             }
+    //         }
+    //     }
+
+    //     args.reverse();
+
+    //     let stdin = if redirect.0.is_some() || self.pipe.is_some() {
+    //         process::Stdio::piped()
+    //     } else {
+    //         process::Stdio::inherit()
+    //     };
+    //     // let stdout = if redirect.1.is_some() || node_list.is_peek_node() {
+    //     // let stdout = if redirect.1.is_some() {
+    //     let stdout = if redirect.1.is_some() {
+    //         process::Stdio::piped()
+    //     } else {
+    //         process::Stdio::inherit()
+    //     };
+    //     let stderr = if redirect.2.is_some() {
+    //         process::Stdio::piped()
+    //     } else {
+    //         process::Stdio::inherit()
+    //     };
+
+    //     let mut command = process::Command::new(program);
+    //     command.stdin(stdin);
+    //     command.stdout(stdout);
+    //     command.stderr(stderr);
+
+    //     Some(command)
+    // }
+
+    // fn run_command(&mut self, mut command: Command, is_pipe: bool) -> io::Result<()> {
+    //     let (mut program, mut args, mut redirect, mut background): (
+    //         String,
+    //         Vec<String>,
+    //         (Option<String>, Option<String>, Option<String>),
+    //         bool,
+    //     ) = (String::new(), Vec::new(), (None, None, None), false);
+
+    //     if let Some(prefix) = command.prefix() {
+    //         match *prefix {
+    //             Node::String(string) => {
+    //                 program = string;
+    //             }
+    //             Node::VReference(key) => {
+    //                 program = self.variable.get(&key).unwrap_or_default();
+    //             }
+    //             _ => {
+    //                 return Ok(());
+    //             }
+    //         }
+    //     } else {
+    //         return Ok(());
+    //     }
+
+    //     if let Some(mut suffix) = command.suffix() {
+    //         while let Some(node) = suffix.pop() {
+    //             match node {
+    //                 Node::String(string) => args.push(string),
+    //                 Node::VReference(key) => {
+    //                     if let Some(val) = self.variable.get(&key) {
+    //                         args.push(val);
+    //                     }
+    //                 }
+    //                 Node::Redirect(rd) => match rd.file().as_ref() {
+    //                     Node::String(string) => match rd.fd() {
+    //                         0 => redirect.0 = Some(string.to_string()),
+    //                         1 => redirect.1 = Some(string.to_string()),
+    //                         2 => redirect.2 = Some(string.to_string()),
+    //                         _ => continue,
+    //                     },
+    //                     _ => continue,
+    //                 },
+    //                 Node::Background(_) => background = true,
+    //                 _ => {}
+    //             }
+    //         }
+    //     }
+
+    //     args.reverse();
+
+    //     let stdin = if redirect.0.is_some() || self.pipe.is_some() {
+    //         process::Stdio::piped()
+    //     } else {
+    //         process::Stdio::inherit()
+    //     };
+    //     // let stdout = if redirect.1.is_some() || node_list.is_peek_node() {
+    //     // let stdout = if redirect.1.is_some() {
+    //     let stdout = if redirect.1.is_some() || is_pipe {
+    //         process::Stdio::piped()
+    //     } else {
+    //         process::Stdio::inherit()
+    //     };
+    //     let stderr = if redirect.2.is_some() {
+    //         process::Stdio::piped()
+    //     } else {
+    //         process::Stdio::inherit()
+    //     };
+
+    //     match process::Command::new(program.clone())
+    //         .args(args)
+    //         .stdin(stdin)
+    //         .stdout(stdout)
+    //         .stderr(stderr)
+    //         .spawn()
+    //     {
+    //         Ok(mut result) => {
+    //             if let Some(mut stdin) = result.stdin.take() {
+    //                 if let Some(pipe) = self.pipe.take() {
+    //                     stdin.write(&pipe.bytes())?;
+    //                 }
+
+    //                 if let Some(string) = redirect.0 {
+    //                     let mut buffer = Vec::new();
+
+    //                     fs::File::open(string)?.read_to_end(&mut buffer)?;
+    //                     stdin.write(&buffer)?;
+    //                 }
+    //             }
+
+    //             if let Some(mut stdout) = result.stdout.take() {
+    //                 let mut buffer = Vec::new();
+
+    //                 stdout.read_to_end(&mut buffer)?;
+    //                 // if node_list.is_peek_node() {
+    //                 //     self.pipe = Some(Pipe::from(buffer.clone()));
+    //                 // }
+
+    //                 if is_pipe {
+    //                     self.pipe = Some(Pipe::from(buffer.clone()));
+    //                 }
+
+    //                 if let Some(string) = redirect.1 {
+    //                     fs::File::create(string)?.write(&mut buffer)?;
+    //                 }
+    //             }
+
+    //             if let Some(mut stderr) = result.stderr.take() {
+    //                 let mut buffer = Vec::new();
+    //                 stderr.read_to_end(&mut buffer)?;
+    //                 if let Some(string) = redirect.2 {
+    //                     fs::File::create(string)?.write(&mut buffer)?;
+    //                 }
+    //             }
+
+    //             if background == false {
+    //                 result.wait()?;
+    //             }
+    //         }
+    //         Err(err) => {
+    //             if matches!(err.kind(), io::ErrorKind::NotFound) {
+    //                 let err_string = format!("command not found : {}\n", program);
+
+    //                 match redirect.2 {
+    //                     Some(string) => {
+    //                         fs::File::create(string)?.write_all(err_string.as_bytes())?;
+    //                     }
+    //                     None => {
+    //                         io::stderr()
+    //                             .lock()
+    //                             .write_all(format!("{}", err_string).as_bytes())
+    //                             .unwrap();
+    //                     }
+    //                 }
+    //             } else {
+    //                 return Err(err);
+    //             }
+    //         }
+    //     }
+
+    //     Ok(())
+    // }
 
     // fn eval(&mut self, mut node_list: parser::NodeList) -> io::Result<()> {
     //     while let Some(node) = node_list.pop() {
@@ -418,19 +738,13 @@ impl Shell {
     // }
 }
 
-// fn parse(source: &str) -> parser::NodeList {
-//     let source = source.replace("~", &env::var("HOME").unwrap_or_default());
+fn parse(source: &str) -> Option<Node> {
+    let source = source.replace("~", &env::var("HOME").unwrap_or_default());
 
-//     let mut parser = parser::Parser::new(parser::lexer::Lexer::new(&source));
-
-//     parser.parse()
-// }
-
-fn parse(source: &str) {
-
-    let mut parser = Parser::new(Lexer::new(source.chars().collect()));
-
-    println!("{:?}",parser.parse());
+    match Parser::new(Lexer::new(source.chars().collect())).parse() {
+        Ok(ok) => ok,
+        Err(err) => panic!("{:?}", err),
+    }
 }
 
 struct Profile(ProfileKind);
