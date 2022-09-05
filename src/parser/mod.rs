@@ -1,8 +1,11 @@
 pub mod lexer;
 mod token;
+
 use crate::parser::lexer::Lexer;
 use crate::parser::token::*;
+use std::borrow::Borrow;
 use std::collections::VecDeque;
+use std::io::{stdout, Write};
 use std::iter::Peekable;
 
 #[derive(Debug)]
@@ -28,7 +31,7 @@ impl Error {
     // }
 }
 
-impl ToString for Error{
+impl ToString for Error {
     fn to_string(&self) -> String {
         self.message.to_string()
     }
@@ -241,21 +244,9 @@ pub enum Node {
     Background(bool),
 }
 
-impl Node {
-    pub fn pop(&mut self) -> Option<Node> {
-        match self {
-            Node::Pipe(pipe) => return pipe.pop(),
-
-            Node::Command(command) => return command.pop_prefix(),
-            _ => {}
-        }
-
-        None
-    }
-}
 
 #[derive(Debug, Eq, PartialEq)]
-struct VInsert {
+pub struct VInsert {
     key: Option<Box<Node>>,
     val: Option<Box<Node>>,
 }
@@ -275,9 +266,16 @@ impl VInsert {
     fn insert_val(&mut self, val: Node) {
         self.val = Some(Box::new(val))
     }
+    pub fn key(&mut self) -> Option<Box<Node>> {
+        self.key.take()
+    }
+
+    pub fn val(&mut self) -> Option<Box<Node>> {
+        self.val.take()
+    }
 }
 #[derive(Debug, Eq, PartialEq)]
-struct Redirect {
+pub struct Redirect {
     fd: usize,
     file: Box<Node>,
 }
@@ -289,9 +287,17 @@ impl Redirect {
             file: Box::new(file),
         }
     }
+
+    pub fn fd(&self)->usize{
+        self.fd
+    }
+
+    pub fn file(&self)->&Box<Node>{
+        self.file.borrow()
+    }
 }
 #[derive(Debug, Eq, PartialEq)]
-struct Command {
+pub struct Command {
     prefix: Option<Box<Node>>,
     suffix: Option<CommandSuffix>,
 }
@@ -320,69 +326,85 @@ impl Command {
         self.suffix = Some(suffix);
     }
 
-    fn pop_prefix(&mut self) -> Option<Node> {
-        match self.prefix.take() {
-            Some(prefix) => Some(*prefix),
-            None => None,
-        }
+    pub fn prefix(&mut self) -> Option<Box<Node>> {
+        self.prefix.take()
     }
 
-    fn pop_suffix(&mut self) -> Option<CommandSuffix> {
+    pub fn suffix(&mut self) -> Option<CommandSuffix> {
         self.suffix.take()
     }
 }
-#[derive(Debug, Eq, PartialEq)]
-struct CommandSuffix {
-    v: Option<Box<Node>>,
-    suffix: Option<Box<CommandSuffix>>,
-}
-impl CommandSuffix {
-    fn new() -> Self {
-        Self {
-            v: None,
-            suffix: None,
-        }
-    }
 
-    fn insert(&mut self, node: Node) -> Result<(), Error> {
+#[derive(Debug, Eq, PartialEq)]
+// pub struct CommandSuffix {
+//     v: Option<Box<Node>>,
+//     suffix: Option<Box<CommandSuffix>>,
+// }
+// impl CommandSuffix {
+//     fn new() -> Self {
+//         Self {
+//             v: None,
+//             suffix: None,
+//         }
+//     }
+
+//     fn insert(&mut self, node: Node) -> Result<(), Error> {
+//         match node {
+//             Node::Pipe(_) | Node::VInsert(_) | Node::Command(_) => Err(Error::new(
+//                 "there is a token that cannot be passed as a command argument",
+//             )),
+
+//             _ => {
+//                 if self.v.is_some() {
+//                     if let Some(suffix) = &mut self.suffix {
+//                         suffix.insert(node)?;
+//                     } else {
+//                         self.suffix = Some(Box::new(CommandSuffix {
+//                             v: Some(Box::new(node)),
+//                             suffix: None,
+//                         }));
+//                     }
+//                 } else {
+//                     self.v = Some(Box::new(node))
+//                 }
+
+//                 Ok(())
+//             }
+//         }
+//     }
+
+//     pub fn get(&mut self) -> Option<Box<Node>> {
+        
+//         None
+//     }
+// }
+pub struct CommandSuffix(Vec<Node>);
+
+impl CommandSuffix{
+    pub fn new()->Self{
+        Self(Vec::new())
+    }
+    fn insert(&mut self,node:Node)->Result<(),Error>{
         match node {
             Node::Pipe(_) | Node::VInsert(_) | Node::Command(_) => Err(Error::new(
                 "there is a token that cannot be passed as a command argument",
             )),
 
             _ => {
-                if self.v.is_some() {
-                    if let Some(suffix) = &mut self.suffix {
-                        suffix.insert(node)?;
-                    } else {
-                        self.suffix = Some(Box::new(CommandSuffix {
-                            v: Some(Box::new(node)),
-                            suffix: None,
-                        }));
-                    }
-                } else {
-                    self.v = Some(Box::new(node))
-                }
+                self.0.push(node);
 
                 Ok(())
             }
         }
     }
 
-    fn pop(&mut self) -> Option<Box<Node>> {
-        if let Some(v) = self.v.take() {
-            Some(v)
-        } else {
-            if let Some(suffix) = self.suffix.as_mut() {
-                suffix.pop()
-            } else {
-                None
-            }
-        }
+    pub fn pop(&mut self)->Option<Node>{
+        self.0.pop()
     }
 }
+
 #[derive(Debug, Eq, PartialEq)]
-struct Pipe {
+pub struct Pipe {
     left: Option<Box<Node>>,
     right: Option<Box<Node>>,
 }
@@ -403,26 +425,12 @@ impl Pipe {
         self.right = Some(Box::new(node))
     }
 
-    fn pop(&mut self) -> Option<Node> {
-        if let Some(left) = self.left.take() {
-            return Some(*left);
-        } else if let Some(right) = self.right.take() {
-            return Some(*right);
-        } else {
-            None
-        }
+    pub fn left(&mut self) -> Option<Box<Node>> {
+        self.left.take()
     }
-}
 
-#[test]
-fn parser_test() {
-    let mut node = Parser::new(Lexer::new(
-        "ls -a ~ | rev | rev | cat -b > output.txt"
-            .chars()
-            .collect(),
-    ))
-    .parse();
-
-    
+    pub fn right(&mut self) -> Option<Box<Node>> {
+        self.right.take()
+    }
 
 }
