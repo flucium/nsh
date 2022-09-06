@@ -10,9 +10,11 @@ use std::f32::consts::PI;
 use std::fs;
 use std::io;
 use std::io::Read;
+use std::io::Stderr;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process;
+use std::process::Child;
 use std::process::ChildStdout;
 use std::process::CommandArgs;
 use std::result;
@@ -21,6 +23,9 @@ pub struct Shell {
     prompt: String,
     variable: Variable,
     termios: libc::termios,
+    stdin: Option<process::Stdio>,
+    stdout: Option<process::Stdio>,
+    stderr: Option<process::Stdio>,
 }
 
 impl Shell {
@@ -29,6 +34,9 @@ impl Shell {
             prompt: String::new(),
             variable: Variable::new(),
             termios: termios(),
+            stdin: None,
+            stdout: None,
+            stderr: None,
         }
     }
 
@@ -55,7 +63,7 @@ impl Shell {
 
         for line in profile.split("\n") {
             if let Some(node) = parse(line) {
-                println!("{:?}",node);
+                println!("{:?}", node);
             }
         }
     }
@@ -78,7 +86,7 @@ impl Shell {
 
         if let Some(string) = self.read_line() {
             if let Some(node) = parse(&string) {
-                println!("{:?}",node);
+                self.eval(node);
             }
         }
     }
@@ -262,6 +270,119 @@ impl Shell {
         } else {
             None
         }
+    }
+
+    fn eval(&mut self, node: Node) {
+        match node {
+            Node::Pipe(mut pipe) => {
+                if let Some(left) = pipe.left() {
+                    if matches!(*left, Node::Pipe(_)) {
+                        self.eval(*left);
+                    } else {
+                        match *left {
+                            Node::Command(command) => {}
+                            _ => {}
+                        }
+                    }
+                }
+
+                if let Some(right) = pipe.right() {
+                    if matches!(*right, Node::Pipe(_)) {
+                        self.eval(*right);
+                    } else {
+                        match *right {
+                            Node::Command(command) => {}
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
+            Node::Command(command) => {
+                println!("{:?}", self.expand_command_node(command));
+            }
+
+            Node::VInsert(mut vinsert) => {
+                let key = match vinsert.key() {
+                    Some(key) => match *key {
+                        Node::String(string) => string,
+                        _ => return,
+                    },
+                    None => return,
+                };
+
+                let val = match vinsert.val() {
+                    Some(val) => match *val {
+                        Node::String(string) => string,
+                        _ => return,
+                    },
+                    None => return,
+                };
+
+                self.variable.insert(&key, &val);
+            }
+
+            _ => {}
+        }
+    }
+
+    fn expand_command_node(
+        &mut self,
+        mut command: Command,
+    ) -> Option<(
+        String,
+        Vec<String>,
+        (Option<String>, Option<String>, Option<String>),
+        bool,
+    )> {
+        let (mut program, mut args, mut redirect, mut background): (
+            String,
+            Vec<String>,
+            (Option<String>, Option<String>, Option<String>),
+            bool,
+        ) = (String::new(), Vec::new(), (None, None, None), false);
+
+        if let Some(prefix) = command.prefix() {
+            match *prefix {
+                Node::String(string) => {
+                    program = string;
+                }
+                Node::VReference(key) => {
+                    program = self.variable.get(&key).unwrap_or_default();
+                }
+                _ => return None,
+            }
+        } else {
+            return None;
+        }
+
+        if let Some(mut suffix) = command.suffix() {
+            while let Some(node) = suffix.pop() {
+                match node {
+                    Node::String(string) => args.push(string),
+                    Node::VReference(key) => {
+                        if let Some(val) = self.variable.get(&key) {
+                            args.push(val);
+                        }
+                    }
+                    Node::Redirect(rd) => match rd.file().as_ref() {
+                        Node::String(string) => match rd.fd() {
+                            0 => redirect.0 = Some(string.to_string()),
+                            1 => redirect.1 = Some(string.to_string()),
+                            2 => redirect.2 = Some(string.to_string()),
+                            _ => continue,
+                        },
+                        _ => continue,
+                    },
+                    Node::Background(_) => background = true,
+                    _ => {}
+                }
+            }
+        }
+
+        args.reverse();
+
+        Some((program, args, redirect, background))
     }
 }
 
