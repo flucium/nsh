@@ -6,26 +6,18 @@ use crate::parser::{lexer::Lexer, Error, Node, Parser};
 use crate::prompt;
 use crate::variable::Variable;
 use std::env;
-use std::f32::consts::PI;
 use std::fs;
 use std::io;
 use std::io::Read;
-use std::io::Stderr;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process;
-use std::process::Child;
-use std::process::ChildStdout;
-use std::process::CommandArgs;
-use std::result;
+use std::rc::Rc;
 
 pub struct Shell {
     prompt: String,
     variable: Variable,
     termios: libc::termios,
-    stdin: Option<process::Stdio>,
-    stdout: Option<process::Stdio>,
-    stderr: Option<process::Stdio>,
 }
 
 impl Shell {
@@ -34,9 +26,6 @@ impl Shell {
             prompt: String::new(),
             variable: Variable::new(),
             termios: termios(),
-            stdin: None,
-            stdout: None,
-            stderr: None,
         }
     }
 
@@ -86,7 +75,10 @@ impl Shell {
 
         if let Some(string) = self.read_line() {
             if let Some(node) = parse(&string) {
-                self.eval(node);
+                let result = self.eval(node, Vec::default());
+                if !result.is_empty() {
+                    println!("{}", String::from_utf8_lossy(&result));
+                }
             }
         }
     }
@@ -272,51 +264,84 @@ impl Shell {
         }
     }
 
-    fn eval(&mut self, node: Node) {
+    fn eval(&mut self, node: Node, mut pipe: Vec<u8>) -> Vec<u8> {
         match node {
-            Node::Pipe(mut pipe) => {
-                if let Some(left) = pipe.left() {
+            Node::Pipe(mut pipe_node) => {
+                if let Some(left) = pipe_node.left() {
                     if matches!(*left, Node::Pipe(_)) {
-                        self.eval(*left);
+                        pipe = self.eval(*left, pipe.clone());
                     } else {
                         match *left {
-                            Node::Command(command) => {}
+                            Node::Command(command) => {
+                                match self.run_command(command, Some(Vec::default())) {
+                                    Ok(ok) => {
+                                        if !ok.is_empty() {
+                                            pipe = ok;
+                                        }
+                                    }
+                                    Err(err) => {}
+                                }
+                            }
+
                             _ => {}
                         }
                     }
                 }
 
-                if let Some(right) = pipe.right() {
+                if let Some(right) = pipe_node.right() {
                     if matches!(*right, Node::Pipe(_)) {
-                        self.eval(*right);
+                        pipe = self.eval(*right, pipe.clone());
                     } else {
                         match *right {
-                            Node::Command(command) => {}
+                            Node::Command(command) => {
+                                match self.run_command(command, Some(pipe.clone())) {
+                                    Ok(ok) => {
+                                        if !ok.is_empty() {
+                                            pipe = ok;
+                                        }
+                                    }
+                                    Err(err) => {}
+                                }
+                            }
+
                             _ => {}
                         }
                     }
                 }
             }
 
-            Node::Command(command) => {
-                println!("{:?}", self.expand_command_node(command));
-            }
+            Node::Command(command) => match self.run_command(command, None) {
+                Ok(ok) => {
+                    if !ok.is_empty() {
+                        pipe = ok;
+                    }
+                }
+                Err(err) => {}
+            },
 
             Node::VInsert(mut vinsert) => {
                 let key = match vinsert.key() {
                     Some(key) => match *key {
                         Node::String(string) => string,
-                        _ => return,
+                        _ => {
+                            return pipe;
+                        }
                     },
-                    None => return,
+                    None => {
+                        return pipe;
+                    }
                 };
 
                 let val = match vinsert.val() {
                     Some(val) => match *val {
                         Node::String(string) => string,
-                        _ => return,
+                        _ => {
+                            return pipe;
+                        }
                     },
-                    None => return,
+                    None => {
+                        return pipe;
+                    }
                 };
 
                 self.variable.insert(&key, &val);
@@ -324,6 +349,102 @@ impl Shell {
 
             _ => {}
         }
+
+        pipe
+    }
+
+    fn run_command(&mut self, command: Command, mut pipe: Option<Vec<u8>>) -> io::Result<Vec<u8>> {
+        let command = match self.expand_command_node(command) {
+            Some(command) => command,
+            None => return Ok(Vec::default()),
+        };
+
+        let stdin = if command.2 .0.is_some() || pipe.is_some() {
+            process::Stdio::piped()
+        } else {
+            process::Stdio::inherit()
+        };
+
+        let stdout = if command.2 .1.is_some() || pipe.is_some() {
+            process::Stdio::piped()
+        } else {
+            process::Stdio::inherit()
+        };
+
+        let stderr = if command.2 .2.is_some() {
+            process::Stdio::piped()
+        } else {
+            process::Stdio::inherit()
+        };
+
+        match process::Command::new(command.0.clone())
+            .args(command.1)
+            .stdin(stdin)
+            .stdout(stdout)
+            .stderr(stderr)
+            .spawn()
+        {
+            Ok(mut result) => {
+                if let Some(mut stdin) = result.stdin.take() {
+                    if let Some(pipe) = pipe.clone().take() {
+                        stdin.write(&pipe)?;
+                    }
+
+                    if let Some(string) = command.2 .0 {
+                        let mut buffer = Vec::new();
+                        fs::File::open(string)?.read_to_end(&mut buffer)?;
+                        stdin.write(&buffer)?;
+                    }
+                }
+
+                if let Some(mut stdout) = result.stdout.take() {
+                    let mut buffer = Vec::new();
+
+                    stdout.read_to_end(&mut buffer)?;
+
+                    if pipe.is_some() {
+                        pipe = Some(buffer.clone());
+                    }
+
+                    if let Some(string) = command.2 .1 {
+                        fs::File::create(string)?.write(&mut buffer)?;
+                    }
+                }
+
+                if let Some(mut stderr) = result.stderr.take() {
+                    let mut buffer = Vec::new();
+                    stderr.read_to_end(&mut buffer)?;
+                    if let Some(string) = command.2 .2 {
+                        fs::File::create(string)?.write(&mut buffer)?;
+                    }
+                }
+
+                if !command.3 {
+                    result.wait()?;
+                }
+            }
+            Err(err) => {
+                if matches!(err.kind(), io::ErrorKind::NotFound) {
+                    let err_string = format!("command not found : {}\n", command.0);
+
+                    match command.2 .2 {
+                        Some(string) => {
+                            fs::File::create(string)?.write_all(err_string.as_bytes())?;
+                        }
+                        None => {
+                            io::stderr()
+                                .lock()
+                                .write_all(format!("{}", err_string).as_bytes())
+                                .unwrap();
+                        }
+                    }
+                } else {
+                    return Err(err);
+                }
+            }
+        }
+
+        Ok(pipe.unwrap_or_default())
     }
 
     fn expand_command_node(
