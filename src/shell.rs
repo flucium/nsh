@@ -1,8 +1,9 @@
 use crate::ansi;
-use crate::builtin;
+// use crate::builtin;
 use crate::parser::Command;
-use crate::parser::Redirect;
-use crate::parser::{lexer::Lexer, Error, Node, Parser};
+// use crate::parser::Redirect;
+use crate::parser::{lexer::Lexer, Node, Parser};
+// use crate::parser::Error;
 use crate::prompt;
 use crate::variable::Variable;
 use std::env;
@@ -12,7 +13,6 @@ use std::io::Read;
 use std::io::Write;
 use std::path::PathBuf;
 use std::process;
-use std::rc::Rc;
 
 pub struct Shell {
     prompt: String,
