@@ -21,9 +21,10 @@ impl Variable {
         self.0.insert(key.to_string(), value);
     }
 
-    pub fn get(&mut self, key: &str) -> Option<String> {
+    //pub fn get(&mut self, key: &str) -> Option<String>
+    pub fn get(&mut self, key: &str) -> Option<&str> {
         match self.0.get(key) {
-            Some(val) => Some(val.to_string()),
+            Some(val) => Some(val),
             None => None,
         }
     }
