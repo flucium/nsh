@@ -119,9 +119,9 @@ impl Parser {
         Ok(Some(Node::Command(command)))
     }
 
-    fn parse_command_prefix(&mut self) -> Result<Option<Node>, Error> {
-        Ok(self.parse_vreference()?.or(self.parse_string()))
-    }
+    // fn parse_command_prefix(&mut self) -> Result<Option<Node>, Error> {
+    //     Ok(self.parse_vreference()?.or(self.parse_string()))
+    // }
 
     fn parse_command_suffix(&mut self) -> Result<CommandSuffix, Error> {
         let mut suffix = CommandSuffix::new();
