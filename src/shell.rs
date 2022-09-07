@@ -52,7 +52,10 @@ impl Shell {
 
         for line in profile.split("\n") {
             if let Some(node) = parse(line) {
-                println!("{:?}", node);
+                let result = self.eval(node, Vec::default());
+                if !result.is_empty() {
+                    println!("{}", String::from_utf8_lossy(&result));
+                }
             }
         }
     }
@@ -323,25 +326,17 @@ impl Shell {
                 let key = match vinsert.key() {
                     Some(key) => match *key {
                         Node::String(string) => string,
-                        _ => {
-                            return pipe;
-                        }
+                        _ => String::new(),
                     },
-                    None => {
-                        return pipe;
-                    }
+                    None => return pipe,
                 };
 
                 let val = match vinsert.val() {
                     Some(val) => match *val {
                         Node::String(string) => string,
-                        _ => {
-                            return pipe;
-                        }
+                        _ => String::new(),
                     },
-                    None => {
-                        return pipe;
-                    }
+                    None => return pipe,
                 };
 
                 self.variable.insert(&key, &val);
