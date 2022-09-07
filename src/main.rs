@@ -1,3 +1,4 @@
+use shell::Shell;
 mod ansi;
 mod builtin;
 mod manifest;
@@ -6,8 +7,13 @@ mod prompt;
 mod shell;
 mod variable;
 
-fn main() {
-    let mut parser = parser::Parser::new(parser::lexer::Lexer::new("ls".chars().collect()));
+use std::borrow::Borrow;
+use std::convert::TryInto;
+use std::io::stdout;
+use std::io::Read;
+use std::io::Write;
 
-    println!("{:?}",parser.parse());
+fn main() {
+    Shell::new().initialize().repl();
+
 }
