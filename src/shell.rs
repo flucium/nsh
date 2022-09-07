@@ -464,7 +464,8 @@ impl Shell {
                     program = string;
                 }
                 Node::VReference(key) => {
-                    program = self.variable.get(&key).unwrap_or_default();
+                    // program = self.variable.get(&key).unwrap_or_default();
+                    program = self.variable.get(&key).unwrap_or_default().to_string();
                 }
                 _ => return None,
             }
@@ -478,7 +479,8 @@ impl Shell {
                     Node::String(string) => args.push(string),
                     Node::VReference(key) => {
                         if let Some(val) = self.variable.get(&key) {
-                            args.push(val);
+                            // args.push(val);
+                            args.push(val.to_string());
                         }
                     }
                     Node::Redirect(rd) => match rd.file().as_ref() {
