@@ -1,11 +1,9 @@
 pub mod lexer;
 mod token;
-
 use crate::parser::lexer::Lexer;
 use crate::parser::token::*;
 use std::borrow::Borrow;
 use std::collections::VecDeque;
-use std::io::{stdout, Write};
 use std::iter::Peekable;
 
 #[derive(Debug)]
