@@ -1,14 +1,13 @@
-use crate::manifest;
 use std::env;
 
 //current user name
 const USER_NAME: &str = "\\u";
 
 //shell name
-const SHELL_NAME: &str = "\\s";
+// const SHELL_NAME: &str = "\\s";
 
 //version of the shell, you are using
-const SHELL_VERSION: &str = "\\v";
+// const SHELL_VERSION: &str = "\\v";
 
 //current working directory
 const CURRENT_DIRECTORY: &str = "\\w";
@@ -25,13 +24,13 @@ pub fn decode(source: &str) -> String {
         buffer = buffer.replace(USER_NAME, &get_user_name().expect(""));
     }
 
-    if source.contains(SHELL_NAME) {
-        buffer = buffer.replace(SHELL_NAME, manifest::name());
-    }
+    // if source.contains(SHELL_NAME) {
+    //     buffer = buffer.replace(SHELL_NAME, manifest::name());
+    // }
 
-    if source.contains(SHELL_VERSION) {
-        buffer = buffer.replace(SHELL_VERSION, manifest::version());
-    }
+    // if source.contains(SHELL_VERSION) {
+    //     buffer = buffer.replace(SHELL_VERSION, manifest::version());
+    // }
 
     if source.contains(CURRENT_DIRECTORY) {
         let full_path = env::current_dir().unwrap_or_default();
