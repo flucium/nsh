@@ -4,14 +4,12 @@ use std::cell::RefCell;
 use std::io;
 use std::io::{stdout, Stdout, Write};
 use std::process::exit;
-// use std::vec::IntoIter;
-#[derive()]
+
 pub struct Terminal {
     buffer: Vec<u8>,
     buffer_index: usize,
     termios: libc::termios,
     prompt: String,
-    
     stdout: RefCell<Stdout>,
 }
 
@@ -28,10 +26,10 @@ impl Terminal {
     }
 
 
-    pub fn prompt(&mut self, prompt: &str) -> &mut Terminal {
-        self.prompt = prompt.to_string();
-        self
-    }
+    // pub fn prompt(&mut self, prompt: &str) -> &mut Terminal {
+    //     self.prompt = prompt.to_string();
+    //     self
+    // }
 
     fn backspace(&mut self) -> io::Result<()> {
         let mut stdout = self.stdout.borrow_mut().lock();
@@ -75,15 +73,15 @@ impl Terminal {
         Ok(())
     }
 
-    fn clear(&mut self) -> io::Result<()> {
-        let count = self.buffer.len();
+    // fn clear(&mut self) -> io::Result<()> {
+    //     let count = self.buffer.len();
 
-        for _ in 0..count {
-            self.backspace()?;
-        }
+    //     for _ in 0..count {
+    //         self.backspace()?;
+    //     }
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     fn init_buffer(&mut self) -> io::Result<()> {
         self.buffer.clear();
