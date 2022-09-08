@@ -1,23 +1,22 @@
-use crate::ansi;
 // use crate::builtin;
 use crate::parser::Command;
 // use crate::parser::Redirect;
 use crate::parser::{lexer::Lexer, Node, Parser};
 // use crate::parser::Error;
 use crate::prompt;
+use crate::terminal::Terminal;
 use crate::variable::Variable;
 use std::env;
 use std::fs;
 use std::io;
-use std::io::Read;
-use std::io::Write;
+use std::io::{Read,Write};
 use std::path::PathBuf;
 use std::process;
 
 pub struct Shell {
     prompt: String,
     variable: Variable,
-    termios: libc::termios,
+    terminal: Terminal,
 }
 
 impl Shell {
@@ -25,7 +24,7 @@ impl Shell {
         Self {
             prompt: String::new(),
             variable: Variable::new(),
-            termios: termios(),
+            terminal: Terminal::new(),
         }
     }
 
@@ -65,6 +64,7 @@ impl Shell {
             Some(string) => prompt::decode(&string),
             None => "#".to_string(),
         };
+        // self.terminal.prompt(&self.prompt);
     }
 
     pub fn repl(&mut self) {
@@ -76,194 +76,25 @@ impl Shell {
     fn rep(&mut self) {
         self.update_prompt();
 
-        if let Some(string) = self.read_line() {
-            if let Some(node) = parse(&string) {
-                let result = self.eval(node, Vec::default());
-                if !result.is_empty() {
-                    println!("{}", String::from_utf8_lossy(&result));
+        let string = match self.terminal.read_line() {
+            Ok(ok) => {
+                if let Some(string) = ok {
+                    string
+                } else {
+                    return;
                 }
             }
-        }
-    }
-
-    fn read_line(&mut self) -> Option<String> {
-        let mut buffer = Vec::new();
-
-        let mut buffer_index = 0;
-
-        let stdout = io::stdout();
-        let mut stdout = stdout.lock();
-
-        set_raw_mode(&mut self.termios);
-
-        if buffer_index <= buffer.len() {
-            let move_position = self.prompt.len() + 1;
-            stdout
-                .write_all(
-                    format!(
-                        "\r{}{}",
-                        self.prompt,
-                        ansi::Cursor::Move(move_position).get_esc_code()
-                    )
-                    .as_bytes(),
-                )
-                .unwrap();
-        }
-
-        loop {
-            if let Some(code) = getch() {
-                match code {
-                    [0] => continue,
-                    [3] => {
-                        unset_raw_mode(&mut self.termios);
-
-                        process::exit(0)
-                    }
-
-                    [10] => break,
-
-                    [27] => {
-                        if getch().unwrap_or([27]) != [91] {
-                            continue;
-                        }
-
-                        match getch().unwrap_or([91]) {
-                            //up
-                            [65] => {}
-                            //down
-                            [66] => {}
-
-                            //right
-                            [67] => {
-                                if buffer_index < buffer.len() {
-                                    buffer_index += 1;
-                                    stdout
-                                        .write_all(
-                                            format!("{}", ansi::Cursor::Right.get_esc_code())
-                                                .as_bytes(),
-                                        )
-                                        .unwrap();
-                                }
-                            }
-                            //left
-                            [68] => {
-                                if buffer_index > 0 {
-                                    stdout
-                                        .write_all(
-                                            format!("{}", ansi::Cursor::Left.get_esc_code())
-                                                .as_bytes(),
-                                        )
-                                        .unwrap();
-                                    buffer_index -= 1;
-                                }
-                            }
-                            _ => continue,
-                        }
-                    }
-                    [127] => {
-                        if buffer_index <= 0 {
-                            continue;
-                        }
-
-                        buffer_index -= 1;
-
-                        for i in 0..buffer.len() {
-                            if i != 0 {
-                                stdout
-                                    .write_all(
-                                        format!("{}", ansi::Cursor::Backspace.get_esc_code())
-                                            .as_bytes(),
-                                    )
-                                    .unwrap()
-                            }
-                        }
-
-                        stdout
-                            .write_all(
-                                format!("\r{}{}", self.prompt, String::from_utf8_lossy(&buffer))
-                                    .as_bytes(),
-                            )
-                            .unwrap();
-
-                        buffer.remove(buffer_index);
-
-                        stdout
-                            .write_all(
-                                format!("{}", ansi::Cursor::Backspace.get_esc_code()).as_bytes(),
-                            )
-                            .unwrap();
-                        stdout
-                            .write_all(
-                                format!(
-                                    "\r{}{}",
-                                    self.prompt,
-                                    String::from_utf8_lossy(&buffer).to_string()
-                                )
-                                .as_bytes(),
-                            )
-                            .unwrap();
-
-                        if buffer_index < buffer.len() {
-                            let move_position = self.prompt.len() + buffer_index - 1;
-                            stdout
-                                .write_all(
-                                    format!("{}", ansi::Cursor::Move(move_position).get_esc_code())
-                                        .as_bytes(),
-                                )
-                                .unwrap();
-                        }
-                    }
-                    _ => {
-                        let code = match code.get(0) {
-                            Some(code) => *code,
-                            None => continue,
-                        };
-
-                        buffer.insert(buffer_index, code);
-                        buffer_index += 1;
-                        for i in 0..buffer.len() {
-                            if i != 0 {
-                                stdout
-                                    .write_all(
-                                        format!("{}", ansi::Cursor::Backspace.get_esc_code())
-                                            .as_bytes(),
-                                    )
-                                    .unwrap();
-                            }
-                        }
-
-                        stdout
-                            .write_all(
-                                format!("\r{}{}", self.prompt, String::from_utf8_lossy(&buffer))
-                                    .as_bytes(),
-                            )
-                            .unwrap();
-
-                        if buffer_index < buffer.len() {
-                            let move_position = self.prompt.len() + buffer_index;
-
-                            stdout
-                                .write_all(
-                                    format!("{}", ansi::Cursor::Move(move_position).get_esc_code())
-                                        .as_bytes(),
-                                )
-                                .unwrap();
-                        }
-                    }
-                }
+            Err(err) => {
+                panic!("{:?}", err);
             }
+        };
 
-            stdout.flush().unwrap_or_default();
-        }
+        if let Some(node) = parse(&string) {
+            let result = self.eval(node, Vec::default());
 
-        unset_raw_mode(&mut self.termios);
-
-        stdout.write(b"\n").unwrap();
-
-        if buffer.len() != 0 {
-            Some(String::from_utf8_lossy(&buffer).to_string())
-        } else {
-            None
+            if !result.is_empty() {
+                println!("{}", String::from_utf8_lossy(&result));
+            }
         }
     }
 
@@ -563,66 +394,4 @@ impl Profile {
 
 enum ProfileKind {
     Local,
-}
-
-fn getch() -> Option<[u8; 1]> {
-    let code = [0; 1];
-
-    let n = unsafe { libc::read(0, code.as_ptr() as *mut libc::c_void, 1) };
-
-    if n <= 0 {
-        return None;
-    }
-
-    Some(code)
-}
-
-fn unset_raw_mode(termios: &mut libc::termios) {
-    termios.c_lflag = libc::ECHO | libc::ICANON;
-
-    unsafe {
-        libc::tcsetattr(0, 0, termios);
-    }
-}
-
-fn set_raw_mode(termios: &mut libc::termios) {
-    unsafe {
-        libc::tcgetattr(0, termios);
-    };
-
-    termios.c_lflag = termios.c_lflag & !(libc::ECHO | libc::ICANON);
-    termios.c_cc[libc::VTIME] = 0;
-    termios.c_cc[libc::VMIN] = 1;
-
-    unsafe {
-        libc::tcsetattr(0, libc::TCSANOW, termios);
-        libc::fcntl(0, libc::F_SETFL, libc::O_NONBLOCK);
-    };
-}
-
-#[cfg(target_os = "macos")]
-fn termios() -> libc::termios {
-    libc::termios {
-        c_cc: [0u8; 20],
-        c_ispeed: 0,
-        c_ospeed: 0,
-        c_iflag: 0,
-        c_oflag: 0,
-        c_cflag: 0,
-        c_lflag: 0,
-    }
-}
-
-#[cfg(target_os = "linux")]
-fn termios() -> libc::termios {
-    libc::termios {
-        c_line: 0,
-        c_cc: [0; 32],
-        c_ispeed: 0,
-        c_ospeed: 0,
-        c_iflag: 0,
-        c_oflag: 0,
-        c_cflag: 0,
-        c_lflag: 0,
-    }
 }
