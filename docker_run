@@ -1,1 +1,0 @@
-docker run --name nsh_develop --net bridge -p 22:22 it ubuntu:nsh_develop
