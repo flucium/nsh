@@ -1,4 +1,4 @@
-use crate::ansi;
+use crate::{ansi, prompt};
 use libc;
 use std::cell::RefCell;
 use std::io;
@@ -20,16 +20,15 @@ impl Terminal {
             buffer_index: 0,
             termios: termios(),
             prompt: String::new(),
-            
+
             stdout: RefCell::new(stdout()),
         }
     }
 
-
-    // pub fn prompt(&mut self, prompt: &str) -> &mut Terminal {
-    //     self.prompt = prompt.to_string();
-    //     self
-    // }
+    pub fn prompt(&mut self, prompt: &prompt::Prompt) -> &mut Terminal {
+        self.prompt = prompt.to_string();
+        self
+    }
 
     fn backspace(&mut self) -> io::Result<()> {
         let mut stdout = self.stdout.borrow_mut().lock();
@@ -130,7 +129,7 @@ impl Terminal {
                         match getch().unwrap_or([91]) {
                             //up
                             [65] => {
-                           
+
                                 // if let Some(string) = history_iter.next_back() {
                                 //     self.buffer.clear();
 
