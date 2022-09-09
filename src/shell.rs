@@ -6,16 +6,20 @@ use crate::parser::{lexer::Lexer, Node, Parser};
 use crate::prompt;
 use crate::terminal::Terminal;
 use crate::variable::Variable;
+use std::cell::RefCell;
 use std::env;
 use std::fs;
 use std::io;
-use std::io::{Read, Write};
+use std::io::{stderr, stdout};
+use std::io::{Read, Stderr, Stdout, Write};
 use std::path::PathBuf;
 use std::process;
 
 pub struct Shell {
     variable: Variable,
     terminal: Terminal,
+    stdout: RefCell<Stdout>,
+    stderr: RefCell<Stderr>,
 }
 
 impl Shell {
@@ -23,6 +27,8 @@ impl Shell {
         Self {
             variable: Variable::new(),
             terminal: Terminal::new(),
+            stdout: RefCell::new(stdout()),
+            stderr: RefCell::new(stderr()),
         }
     }
 
@@ -51,7 +57,7 @@ impl Shell {
             if let Some(node) = parse(line) {
                 let result = self.eval(node, Vec::default());
                 if !result.is_empty() {
-                    println!("{}", String::from_utf8_lossy(&result));
+                    self.stdout.borrow_mut().lock().write_all(&result).unwrap();
                 }
             }
         }
@@ -75,7 +81,7 @@ impl Shell {
                         let result = self.eval(node, Vec::default());
 
                         if !result.is_empty() {
-                            println!("{}", String::from_utf8_lossy(&result));
+                            self.stdout.borrow_mut().lock().write_all(&result).unwrap();
                         }
                     }
                 }
@@ -101,7 +107,13 @@ impl Shell {
                                             pipe = ok;
                                         }
                                     }
-                                    Err(err) => {}
+                                    Err(err) => {
+                                        self.stderr
+                                            .borrow_mut()
+                                            .lock()
+                                            .write_all(format!("{}", err).as_bytes())
+                                            .unwrap();
+                                    }
                                 }
                             }
 
@@ -122,7 +134,13 @@ impl Shell {
                                             pipe = ok;
                                         }
                                     }
-                                    Err(err) => {}
+                                    Err(err) => {
+                                        self.stderr
+                                            .borrow_mut()
+                                            .lock()
+                                            .write_all(format!("{}", err).as_bytes())
+                                            .unwrap();
+                                    }
                                 }
                             }
 
@@ -138,7 +156,13 @@ impl Shell {
                         pipe = ok;
                     }
                 }
-                Err(err) => {}
+                Err(err) => {
+                    self.stderr
+                        .borrow_mut()
+                        .lock()
+                        .write_all(format!("{}", err).as_bytes())
+                        .unwrap();
+                }
             },
 
             Node::VInsert(mut vinsert) => {
@@ -284,7 +308,7 @@ impl Shell {
                 }
                 Node::VReference(key) => {
                     // program = self.variable.get(&key).unwrap_or_default();
-                    program = self.variable.get(&key).unwrap_or_default().to_string();
+                    program.push_str(&self.variable.get(&key).unwrap_or_default().to_string());
                 }
                 _ => return None,
             }
