@@ -9,12 +9,11 @@ use crate::variable::Variable;
 use std::env;
 use std::fs;
 use std::io;
-use std::io::{Read,Write};
+use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process;
 
 pub struct Shell {
-    prompt: String,
     variable: Variable,
     terminal: Terminal,
 }
@@ -22,7 +21,6 @@ pub struct Shell {
 impl Shell {
     pub fn new() -> Self {
         Self {
-            prompt: String::new(),
             variable: Variable::new(),
             terminal: Terminal::new(),
         }
@@ -59,14 +57,6 @@ impl Shell {
         }
     }
 
-    fn update_prompt(&mut self) {
-        self.prompt = match self.variable.get("NSH_PROMPT") {
-            Some(string) => prompt::decode(&string),
-            None => "#".to_string(),
-        };
-        // self.terminal.prompt(&self.prompt);
-    }
-
     pub fn repl(&mut self) {
         loop {
             self.rep();
@@ -74,26 +64,24 @@ impl Shell {
     }
 
     fn rep(&mut self) {
-        self.update_prompt();
+        self.terminal.prompt(&prompt::decode(
+            self.variable.get("NSH_PROMPT").unwrap_or(">"),
+        ));
 
-        let string = match self.terminal.read_line() {
+        match self.terminal.read_line() {
             Ok(ok) => {
                 if let Some(string) = ok {
-                    string
-                } else {
-                    return;
+                    if let Some(node) = parse(&string) {
+                        let result = self.eval(node, Vec::default());
+
+                        if !result.is_empty() {
+                            println!("{}", String::from_utf8_lossy(&result));
+                        }
+                    }
                 }
             }
             Err(err) => {
-                panic!("{:?}", err);
-            }
-        };
-
-        if let Some(node) = parse(&string) {
-            let result = self.eval(node, Vec::default());
-
-            if !result.is_empty() {
-                println!("{}", String::from_utf8_lossy(&result));
+                panic!("{err}")
             }
         }
     }
