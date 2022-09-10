@@ -1,6 +1,7 @@
 // use crate::builtin;
 use crate::parser::Command;
 // use crate::parser::Redirect;
+use crate::builtin::cd;
 use crate::parser::{lexer::Lexer, Node, Parser};
 // use crate::parser::Error;
 use crate::prompt;
@@ -196,6 +197,18 @@ impl Shell {
             Some(command) => command,
             None => return Ok(Vec::default()),
         };
+
+        // !!!added as a test!!!
+        if command.0 == "cd" {
+            return match cd(command
+                .1
+                .get(0)
+                .unwrap_or(&env::var("HOME").unwrap_or_default().to_string()))
+            {
+                Ok(_) => Ok(Vec::default()),
+                Err(err) => Err(err),
+            };
+        }
 
         let stdin = if command.2 .0.is_some() || pipe.is_some() {
             process::Stdio::piped()
