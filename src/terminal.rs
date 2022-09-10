@@ -8,7 +8,6 @@ use std::process::exit;
 pub struct Terminal {
     buffer: Vec<u8>,
     buffer_index: usize,
-    termios: libc::termios,
     prompt: String,
     stdout: RefCell<Stdout>,
 }
@@ -18,7 +17,7 @@ impl Terminal {
         Self {
             buffer: Vec::new(),
             buffer_index: 0,
-            termios: termios(),
+
             prompt: String::new(),
 
             stdout: RefCell::new(stdout()),
@@ -103,7 +102,9 @@ impl Terminal {
     }
 
     pub fn read_line(&mut self) -> io::Result<Option<String>> {
-        set_raw_mode(&mut self.termios);
+        let mut termios = termios();
+
+        set_raw_mode(&mut termios);
 
         let mut stdout = self.stdout.borrow_mut().lock();
 
@@ -114,7 +115,7 @@ impl Terminal {
                 match code {
                     [0] => continue,
                     [3] => {
-                        unset_raw_mode(&mut self.termios);
+                        unset_raw_mode(&mut termios);
 
                         exit(0)
                     }
@@ -128,25 +129,7 @@ impl Terminal {
 
                         match getch().unwrap_or([91]) {
                             //up
-                            [65] => {
-
-                                // if let Some(string) = history_iter.next_back() {
-                                //     self.buffer.clear();
-
-                                //     self.buffer_index = 0;
-
-                                //     self.buffer.write_all(string.as_bytes())?;
-
-                                //     stdout.write_all(
-                                //         format!(
-                                //             "\r{}{}",
-                                //             self.prompt,
-                                //             String::from_utf8_lossy(&self.buffer)
-                                //         )
-                                //         .as_bytes(),
-                                //     )?;
-                                // }
-                            }
+                            [65] => {}
 
                             //down
                             [66] => {}
@@ -213,7 +196,7 @@ impl Terminal {
             stdout.flush().unwrap_or_default();
         }
 
-        unset_raw_mode(&mut self.termios);
+        unset_raw_mode(&mut termios);
 
         stdout.write(b"\n")?;
 
