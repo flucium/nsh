@@ -4,6 +4,7 @@ use std::io;
 use std::path::Path;
 use std::process;
 
+
 pub fn exit(code: i32) -> ! {
     process::exit(code)
 }
@@ -31,3 +32,7 @@ pub fn senv(v: &mut Variable) ->io::Result<String>{
 
     Ok(buffer)
 }
+
+// pub mod fli{
+
+// }
