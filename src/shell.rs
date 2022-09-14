@@ -1,7 +1,7 @@
 // use crate::builtin;
 use crate::parser::Command;
 // use crate::parser::Redirect;
-use crate::builtin::cd;
+use crate::builtin::{cd, exit, senv};
 use crate::parser::{lexer::Lexer, Node, Parser};
 // use crate::parser::Error;
 use crate::prompt;
@@ -198,99 +198,110 @@ impl Shell {
             None => return Ok(Vec::default()),
         };
 
-        // !!!added as a test!!!
-        if command.0 == "cd" {
-            return match cd(command
-                .1
-                .get(0)
-                .unwrap_or(&env::var("HOME").unwrap_or_default().to_string()))
-            {
-                Ok(_) => Ok(Vec::default()),
-                Err(err) => Err(err),
-            };
-        }
-
-        let stdin = if command.2 .0.is_some() || pipe.is_some() {
-            process::Stdio::piped()
-        } else {
-            process::Stdio::inherit()
-        };
-
-        let stdout = if command.2 .1.is_some() || pipe.is_some() {
-            process::Stdio::piped()
-        } else {
-            process::Stdio::inherit()
-        };
-
-        let stderr = if command.2 .2.is_some() {
-            process::Stdio::piped()
-        } else {
-            process::Stdio::inherit()
-        };
-
-        match process::Command::new(command.0.clone())
-            .args(command.1)
-            .stdin(stdin)
-            .stdout(stdout)
-            .stderr(stderr)
-            .spawn()
-        {
-            Ok(mut result) => {
-                if let Some(mut stdin) = result.stdin.take() {
-                    if let Some(pipe) = pipe.clone().take() {
-                        stdin.write(&pipe)?;
-                    }
-
-                    if let Some(string) = command.2 .0 {
-                        let mut buffer = Vec::new();
-                        fs::File::open(string)?.read_to_end(&mut buffer)?;
-                        stdin.write(&buffer)?;
-                    }
-                }
-
-                if let Some(mut stdout) = result.stdout.take() {
-                    let mut buffer = Vec::new();
-
-                    stdout.read_to_end(&mut buffer)?;
-
-                    if pipe.is_some() {
-                        pipe = Some(buffer.clone());
-                    }
-
-                    if let Some(string) = command.2 .1 {
-                        fs::File::create(string)?.write(&mut buffer)?;
-                    }
-                }
-
-                if let Some(mut stderr) = result.stderr.take() {
-                    let mut buffer = Vec::new();
-                    stderr.read_to_end(&mut buffer)?;
-                    if let Some(string) = command.2 .2 {
-                        fs::File::create(string)?.write(&mut buffer)?;
-                    }
-                }
-
-                if !command.3 {
-                    result.wait()?;
-                }
+        match command.0.as_str() {
+            "cd" => {
+                cd(command
+                    .1
+                    .get(0)
+                    .unwrap_or(&env::var("HOME").unwrap_or_default().to_string()))?;
             }
-            Err(err) => {
-                if matches!(err.kind(), io::ErrorKind::NotFound) {
-                    let err_string = format!("command not found : {}\n", command.0);
+            "exit" => {
+                exit(
+                    command
+                        .1
+                        .get(0)
+                        .unwrap_or(&"0".to_string())
+                        .parse::<i32>()
+                        .unwrap_or(0),
+                );
+            }
+            "senv" => {
+                pipe = Some(senv(&mut self.variable)?.as_bytes().to_vec());
+            }
+            _ => {
+                let stdin = if command.2 .0.is_some() || pipe.is_some() {
+                    process::Stdio::piped()
+                } else {
+                    process::Stdio::inherit()
+                };
 
-                    match command.2 .2 {
-                        Some(string) => {
-                            fs::File::create(string)?.write_all(err_string.as_bytes())?;
+                let stdout = if command.2 .1.is_some() || pipe.is_some() {
+                    process::Stdio::piped()
+                } else {
+                    process::Stdio::inherit()
+                };
+
+                let stderr = if command.2 .2.is_some() {
+                    process::Stdio::piped()
+                } else {
+                    process::Stdio::inherit()
+                };
+
+                match process::Command::new(command.0.clone())
+                    .args(command.1)
+                    .stdin(stdin)
+                    .stdout(stdout)
+                    .stderr(stderr)
+                    .spawn()
+                {
+                    Ok(mut result) => {
+                        if let Some(mut stdin) = result.stdin.take() {
+                            if let Some(pipe) = pipe.clone().take() {
+                                stdin.write(&pipe)?;
+                            }
+
+                            if let Some(string) = command.2 .0 {
+                                let mut buffer = Vec::new();
+                                fs::File::open(string)?.read_to_end(&mut buffer)?;
+                                stdin.write(&buffer)?;
+                            }
                         }
-                        None => {
-                            io::stderr()
-                                .lock()
-                                .write_all(format!("{}", err_string).as_bytes())
-                                .unwrap();
+
+                        if let Some(mut stdout) = result.stdout.take() {
+                            let mut buffer = Vec::new();
+
+                            stdout.read_to_end(&mut buffer)?;
+
+                            if pipe.is_some() {
+                                pipe = Some(buffer.clone());
+                            }
+
+                            if let Some(string) = command.2 .1 {
+                                fs::File::create(string)?.write(&mut buffer)?;
+                            }
+                        }
+
+                        if let Some(mut stderr) = result.stderr.take() {
+                            let mut buffer = Vec::new();
+                            stderr.read_to_end(&mut buffer)?;
+                            if let Some(string) = command.2 .2 {
+                                fs::File::create(string)?.write(&mut buffer)?;
+                            }
+                        }
+
+                        if !command.3 {
+                            result.wait()?;
                         }
                     }
-                } else {
-                    return Err(err);
+                    Err(err) => {
+                        if matches!(err.kind(), io::ErrorKind::NotFound) {
+                            let err_string = format!("command not found : {}\n", command.0);
+
+                            match command.2 .2 {
+                                Some(string) => {
+                                    fs::File::create(string)?.write_all(err_string.as_bytes())?;
+                                }
+                                None => {
+                                    io::stderr()
+                                        .lock()
+                                        .write_all(format!("{}", err_string).as_bytes())
+                                        .unwrap();
+                                }
+                            }
+                        } else {
+                            return Err(err);
+                        }
+                    }
                 }
             }
         }
