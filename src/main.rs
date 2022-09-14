@@ -14,5 +14,7 @@ fn main() {
         .lock()
         .write_all(format!("{}{}\n", manifest::name(), manifest::version()).as_bytes())
         .unwrap();
+
     Shell::new().initialize().repl();
+
 }
