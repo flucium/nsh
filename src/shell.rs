@@ -76,14 +76,12 @@ impl Shell {
         ));
 
         match self.terminal.read_line() {
-            Ok(ok) => {
-                if let Some(string) = ok {
-                    if let Some(node) = parse(&string) {
-                        let result = self.eval(node, Vec::default());
+            Ok(string) => {
+                if let Some(node) = parse(&string) {
+                    let result = self.eval(node, Vec::default());
 
-                        if !result.is_empty() {
-                            self.stdout.borrow_mut().lock().write_all(&result).unwrap();
-                        }
+                    if !result.is_empty() {
+                        self.stdout.borrow_mut().lock().write_all(&result).unwrap();
                     }
                 }
             }
