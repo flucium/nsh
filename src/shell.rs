@@ -4,9 +4,10 @@ use crate::parser::Command;
 use crate::builtin::{cd, exit, senv};
 use crate::parser::{lexer::Lexer, Node, Parser};
 // use crate::parser::Error;
-use crate::prompt;
 use crate::terminal::Terminal;
 use crate::variable::Variable;
+use crate::prompt;
+
 use std::cell::RefCell;
 use std::env;
 use std::fs;
