@@ -231,7 +231,7 @@ impl Parser {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone,Eq, PartialEq)]
 pub enum Node {
     String(String),
     VReference(String),
@@ -243,7 +243,8 @@ pub enum Node {
 }
 
 
-#[derive(Debug, Eq, PartialEq)]
+
+#[derive(Debug, Clone,Eq, PartialEq)]
 pub struct VInsert {
     key: Option<Box<Node>>,
     val: Option<Box<Node>>,
@@ -272,7 +273,7 @@ impl VInsert {
         self.val.take()
     }
 }
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone,Eq, PartialEq)]
 pub struct Redirect {
     fd: usize,
     file: Box<Node>,
@@ -294,7 +295,7 @@ impl Redirect {
         self.file.borrow()
     }
 }
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone,Eq, PartialEq)]
 pub struct Command {
     prefix: Option<Box<Node>>,
     suffix: Option<CommandSuffix>,
@@ -333,7 +334,8 @@ impl Command {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+
+#[derive(Debug, Clone,Eq, PartialEq)]
 // pub struct CommandSuffix {
 //     v: Option<Box<Node>>,
 //     suffix: Option<Box<CommandSuffix>>,
@@ -401,7 +403,7 @@ impl CommandSuffix{
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Clone,Eq, PartialEq)]
 pub struct Pipe {
     left: Option<Box<Node>>,
     right: Option<Box<Node>>,
