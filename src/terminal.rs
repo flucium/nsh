@@ -71,16 +71,6 @@ impl Terminal {
         Ok(())
     }
 
-    // fn clear(&mut self) -> io::Result<()> {
-    //     let count = self.buffer.len();
-
-    //     for _ in 0..count {
-    //         self.backspace()?;
-    //     }
-
-    //     Ok(())
-    // }
-
     fn init_buffer(&mut self) -> io::Result<()> {
         self.buffer.clear();
 
@@ -101,7 +91,7 @@ impl Terminal {
         Ok(())
     }
 
-    pub fn read_line(&mut self) -> io::Result<Option<String>> {
+    pub fn read_line(&mut self) -> io::Result<String> {
         let mut termios = termios();
 
         set_raw_mode(&mut termios);
@@ -200,11 +190,8 @@ impl Terminal {
 
         stdout.write(b"\n")?;
 
-        if self.buffer.is_empty() {
-            Ok(None)
-        } else {
-            Ok(Some(String::from_utf8_lossy(&self.buffer).to_string()))
-        }
+
+        Ok(String::from_utf8_lossy(&self.buffer).to_string())
     }
 }
 
