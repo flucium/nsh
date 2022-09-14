@@ -1,4 +1,4 @@
-use crate::{ansi, prompt};
+use crate::ansi;
 use libc;
 use std::cell::RefCell;
 use std::io;
@@ -24,7 +24,7 @@ impl Terminal {
         }
     }
 
-    pub fn prompt(&mut self, prompt: &prompt::Prompt) -> &mut Terminal {
+    pub fn prompt(&mut self, prompt: String) -> &mut Terminal {
         self.prompt = prompt.to_string();
         self
     }
