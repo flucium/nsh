@@ -1,7 +1,7 @@
 use crate::manifest::{name,version};
 use std::env;
 
-pub type Prompt = String;
+// pub type Prompt = String;
 
 //current user name
 const USER_NAME: &str = "\\u";
@@ -20,7 +20,7 @@ const CURRENT_F_DIRECTORY: &str = "\\W";
 
 //host machine name
 // const HOST_NAME: &str = "\\h";
-pub fn decode(source: &str) -> Prompt {
+pub fn decode(source: String) ->String {
     let mut buffer = source.to_string();
 
     if source.contains(USER_NAME) {

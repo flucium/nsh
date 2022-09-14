@@ -71,8 +71,8 @@ impl Shell {
     }
 
     fn rep(&mut self) {
-        self.terminal.prompt(&prompt::decode(
-            self.variable.get("NSH_PROMPT").unwrap_or(">"),
+        self.terminal.prompt(prompt::decode(
+            self.variable.get("NSH_PROMPT").unwrap_or(">").to_owned(),
         ));
 
         match self.terminal.read_line() {
