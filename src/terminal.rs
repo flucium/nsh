@@ -99,8 +99,13 @@ impl Terminal {
         let mut stdout = self.stdout.borrow_mut().lock();
 
         self.init_buffer()?;
-
+        
+        
+        
+        
+        
         loop {
+            stdout.flush().unwrap_or_default();
             if let Some(code) = getch() {
                 match code {
                     [0] => continue,
@@ -183,7 +188,7 @@ impl Terminal {
                 }
             }
 
-            stdout.flush().unwrap_or_default();
+            
         }
 
         unset_raw_mode(&mut termios);
@@ -226,7 +231,8 @@ fn set_raw_mode(termios: &mut libc::termios) {
 
     unsafe {
         libc::tcsetattr(0, libc::TCSANOW, termios);
-        libc::fcntl(0, libc::F_SETFL, libc::O_NONBLOCK);
+        // libc::fcntl(0, libc::F_SETFL, libc::O_NONBLOCK);
+        libc::fcntl(0, libc::F_SETFL);
     };
 }
 
