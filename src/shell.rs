@@ -395,7 +395,8 @@ impl Profile {
     }
 
     fn create(&self) -> io::Result<String> {
-        const DEFAULT_VALUE: &str = "NSH_PROMPT = \\w#";
+        
+        const DEFAULT_VALUE: &str = "NSH_PROMPT = \"\\w # \"\necho \"nsh\" \"1.0.0 β\"";
 
         let path = self.lookup()?;
 
