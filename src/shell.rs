@@ -1,12 +1,11 @@
-// use crate::builtin;
 use crate::parser::Command;
 // use crate::parser::Redirect;
 use crate::builtin::{cd, exit, senv};
 use crate::parser::{lexer::Lexer, Node, Parser};
 // use crate::parser::Error;
+use crate::prompt;
 use crate::terminal::Terminal;
 use crate::variable::Variable;
-use crate::prompt;
 
 use std::cell::RefCell;
 use std::env;
@@ -395,12 +394,12 @@ impl Profile {
     }
 
     fn create(&self) -> io::Result<String> {
-        
         const DEFAULT_VALUE: &str = "NSH_PROMPT = \"\\w # \"\necho \"nsh\" \"1.0.0 β\"";
 
         let path = self.lookup()?;
 
         fs::File::create(path)?.write_all(DEFAULT_VALUE.as_bytes())?;
+
         Ok(DEFAULT_VALUE.to_string())
     }
 
