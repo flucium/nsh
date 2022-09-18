@@ -1,6 +1,5 @@
 use crate::parser::token::Token;
 use std::collections::VecDeque;
-use std::iter::Peekable;
 use std::mem::swap;
 
 pub struct Lexer {
