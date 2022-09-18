@@ -1,5 +1,6 @@
 use crate::parser::token::Token;
 use std::collections::VecDeque;
+use std::iter::Peekable;
 use std::mem::swap;
 
 pub struct Lexer {
@@ -23,7 +24,6 @@ impl Lexer {
         }
     }
 
-    
     fn pop_front(&mut self) -> Option<Token> {
         let mut token = self.peek_token.take().or_else(|| self.read());
 
@@ -45,19 +45,30 @@ impl Lexer {
                 continue;
             }
 
-            if let Some(n) = ch.is_numeric().then(|| {
-                self.input.pop_front().and_then(|next_ch| {
-                    let n = String::from(ch).parse::<u8>().unwrap_or(0);
+            // if let Some(n) = ch.is_numeric().then(|| {
+            //     self.input.pop_front().and_then(|next_ch| {
+            //         let n = String::from(ch).parse::<u8>().unwrap_or(0);
+            //         if matches!(next_ch, '>' | '<') {
+            //             Some(n)
+            //         } else {
+            //             self.input.push_front(next_ch);
+            //             None
+            //         }
+            //     })
+            // }) {
+            //     token = Some(Token::Redirect(n.unwrap_or(0)));
+            //     break;
+            // }
+            if ch.is_numeric() {
+                if let Some(next_ch) = self.input.pop_front() {
                     if matches!(next_ch, '>' | '<') {
-                        Some(n)
+                        let n = String::from(ch).parse::<u8>().unwrap_or(0);
+                        token = Some(Token::Redirect(n));
+                        break;
                     } else {
                         self.input.push_front(next_ch);
-                        None
                     }
-                })
-            }) {
-                token = Some(Token::Redirect(n.unwrap_or(0)));
-                break;
+                }
             }
 
             match ch {
@@ -121,11 +132,11 @@ impl Lexer {
         let mut string = String::new();
 
         while let Some(ch) = self.input.pop_front() {
-            if ch.is_whitespace() && !esc{
+            if ch.is_whitespace() && !esc {
                 break;
             }
 
-            if esc && ch == '"'{
+            if esc && ch == '"' {
                 break;
             }
             string.push(ch)
