@@ -23,7 +23,7 @@ impl Lexer {
         }
     }
 
-    //return the Token returned from self.read(...){...}
+    
     fn pop_front(&mut self) -> Option<Token> {
         let mut token = self.peek_token.take().or_else(|| self.read());
 
