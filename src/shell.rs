@@ -9,7 +9,7 @@ use std::env;
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
-use std::os::unix::prelude::{AsRawFd, FromRawFd};
+use std::os::unix::prelude::{ FromRawFd};
 use std::path::PathBuf;
 
 pub struct Shell {
