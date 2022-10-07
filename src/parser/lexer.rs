@@ -1,6 +1,6 @@
 use crate::parser::token::Token;
 use std::collections::VecDeque;
-use std::mem::swap;
+// use std::mem::swap;
 
 pub struct Lexer {
     input: VecDeque<char>,
@@ -24,18 +24,25 @@ impl Lexer {
     }
 
     fn pop_front(&mut self) -> Option<Token> {
-        let mut token = self.peek_token.take().or_else(|| self.read());
+        // let mut token = self.peek_token.take().or_else(|| self.read());
+        
+        let token = self.peek_token.take().or_else(|| self.read());
 
         self.peek_token = self.read();
 
-        if self.peek_token.as_ref() == Some(&Token::Equal) {
-            swap(&mut token, &mut self.peek_token);
-        }
+        // if self.peek_token.as_ref() == Some(&Token::Equal) {
+        //     swap(&mut token, &mut self.peek_token);
+        // }
+        // if matches!(
+        //     self.peek_token.as_ref(),
+        //     Some(Token::Equal) | Some(Token::Lt) | Some(Token::Gt)
+        // ) {
+        //     swap(&mut token, &mut self.peek_token);
+        // }
 
         token
     }
 
-    //read chars from self.input and return as Token
     fn read(&mut self) -> Option<Token> {
         let mut token: Option<Token> = None;
 
@@ -44,72 +51,72 @@ impl Lexer {
                 continue;
             }
 
-            // if let Some(n) = ch.is_numeric().then(|| {
-            //     self.input.pop_front().and_then(|next_ch| {
-            //         let n = String::from(ch).parse::<u8>().unwrap_or(0);
-            //         if matches!(next_ch, '>' | '<') {
-            //             Some(n)
-            //         } else {
-            //             self.input.push_front(next_ch);
-            //             None
-            //         }
-            //     })
-            // }) {
-            //     token = Some(Token::Redirect(n.unwrap_or(0)));
-            //     break;
-            // }
-            if ch.is_numeric() {
-                if let Some(next_ch) = self.input.pop_front() {
-                    if matches!(next_ch, '>' | '<') {
-                        let n = String::from(ch).parse::<u8>().unwrap_or(0);
-                        token = Some(Token::Redirect(n));
-                        break;
-                    } else {
-                        self.input.push_front(next_ch);
-                    }
-                }
-            }
-
             match ch {
+                ';' => {
+                    token = Some(Token::Semicolon);
+                    break;
+                }
+
                 '|' => {
                     token = Some(Token::Pipe);
                     break;
                 }
 
                 '>' => {
-                    token = Some(Token::Redirect(1));
+                    token = Some(Token::Gt);
                     break;
                 }
 
                 '<' => {
-                    token = Some(Token::Redirect(0));
-                    break;
-                }
-
-                '&' => {
-                    token = Some(Token::Background);
+                    token = Some(Token::Lt);
                     break;
                 }
 
                 '=' => {
                     token = Some(Token::Equal);
-
                     break;
                 }
 
                 '$' => {
-                    token = Some(Token::Reference);
+                    token = Some(Token::String(String::from(ch)));
+
+                    if self.input_peek_is_eof() == false && self.input_peek_is_whitespace() == false
+                    {
+                        let is_esc = self.input_peek_is('"');
+                        if is_esc {
+                            self.input.pop_front().unwrap();
+                        }
+
+                        let string = self.read_string(is_esc);
+
+                        token = Some(Token::Reference(string));
+                    }
+
                     break;
                 }
 
-                ';' => {
-                    token = Some(Token::Semicolon);
+                '&' => {
+                    token = Some(Token::Ampersand);
+
+                    if self.input_peek_is_whitespace() == false {
+                        let mut string = self.read_string(false);
+
+                        match string.parse::<i32>() {
+                            Ok(n) => {
+                                token = Some(Token::FD(n));
+                            }
+                            Err(_) => {
+                                while let Some(ch) = string.pop() {
+                                    self.input.push_front(ch);
+                                }
+                            }
+                        }
+                    }
+
                     break;
                 }
 
                 '"' => {
-                    // (ch.is_whitespace() == false).then(|| self.input.push_front(ch));
-
                     token = Some(Token::String(self.read_string(true)));
                     break;
                 }
@@ -117,7 +124,18 @@ impl Lexer {
                 _ => {
                     (ch.is_whitespace() == false).then(|| self.input.push_front(ch));
 
-                    token = Some(Token::String(self.read_string(false)));
+                    let string = self.read_string(false);
+
+                    if let Ok(numeric) = string.parse::<i32>() {
+                        if self.input_peek_is_eof() == false
+                            && self.input_peek_is_whitespace() == false
+                        {
+                            token = Some(Token::FD(numeric));
+                            break;
+                        }
+                    }
+
+                    token = Some(Token::String(string));
 
                     break;
                 }
@@ -131,60 +149,43 @@ impl Lexer {
         let mut string = String::new();
 
         while let Some(ch) = self.input.pop_front() {
-            if ch.is_whitespace() && !esc {
-                break;
+            if esc {
+                if ch == '"' {
+                    break;
+                }
+            } else {
+                if ch.is_whitespace() {
+                    self.input.push_front(ch);
+                    break;
+                }
+
+                if matches!(ch, ';' | '=' | '|' | '>' | '<') {
+                    self.input.push_front(ch);
+                    break;
+                }
             }
 
-            if esc && ch == '"' {
-                break;
-            }
             string.push(ch)
         }
 
         string
     }
+
+    fn input_peek_is_whitespace(&self) -> bool {
+        match self.input.iter().peekable().peek() {
+            Some(peek_ch) => peek_ch.is_whitespace(),
+            None => false,
+        }
+    }
+
+    fn input_peek_is_eof(&self) -> bool {
+        self.input.iter().peekable().peek().is_none()
+    }
+
+    fn input_peek_is(&self, ch: char) -> bool {
+        match self.input.iter().peekable().peek() {
+            Some(peek_ch) => peek_ch == &&ch,
+            None => false,
+        }
+    }
 }
-
-// #[test]
-// fn lexer_test() {
-//     let mut lexer = Lexer::new(
-//         "ls -a > output.txt 2> err.txt | cat -b | rev | rev ; echo hello    ; KEY = VAL ; $KEY"
-//             .chars()
-//             .collect(),
-//     );
-
-//     assert_eq!(Some(Token::String("ls".to_string())), lexer.pop_front());
-//     assert_eq!(Some(Token::String("-a".to_string())), lexer.pop_front());
-//     assert_eq!(Some(Token::Redirect(1)), lexer.pop_front());
-//     assert_eq!(
-//         Some(Token::String("output.txt".to_string())),
-//         lexer.pop_front()
-//     );
-//     assert_eq!(Some(Token::Redirect(2)), lexer.pop_front());
-//     assert_eq!(
-//         Some(Token::String("err.txt".to_string())),
-//         lexer.pop_front()
-//     );
-//     assert_eq!(Some(Token::Pipe), lexer.pop_front());
-//     assert_eq!(Some(Token::String("cat".to_string())), lexer.pop_front());
-//     assert_eq!(Some(Token::String("-b".to_string())), lexer.pop_front());
-//     assert_eq!(Some(Token::Pipe), lexer.pop_front());
-//     assert_eq!(Some(Token::String("rev".to_string())), lexer.pop_front());
-//     assert_eq!(Some(Token::Pipe), lexer.pop_front());
-//     assert_eq!(Some(Token::String("rev".to_string())), lexer.pop_front());
-//     assert_eq!(Some(Token::Semicolon), lexer.pop_front());
-//     assert_eq!(Some(Token::String("echo".to_string())), lexer.pop_front());
-//     assert_eq!(Some(Token::String("hello".to_string())), lexer.pop_front());
-//     assert_eq!(Some(Token::Semicolon), lexer.pop_front());
-//     assert_eq!(Some(Token::Equal), lexer.pop_front());
-//     assert_eq!(Some(Token::String("KEY".to_string())), lexer.pop_front());
-//     assert_eq!(Some(Token::String("VAL".to_string())), lexer.pop_front());
-//     assert_eq!(Some(Token::Semicolon), lexer.pop_front());
-//     assert_eq!(Some(Token::Reference), lexer.pop_front());
-//     assert_eq!(Some(Token::String("KEY".to_string())), lexer.pop_front());
-
-//     assert_eq!(
-//         Some(Token::String("hello rust".to_string())),
-//         Lexer::new("\"hello rust\"".chars().collect()).pop_front()
-//     );
-// }
