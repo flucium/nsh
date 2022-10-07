@@ -1,5 +1,4 @@
 use crate::ansi;
-use libc;
 use std::io;
 use std::io::{stdout, Write};
 use std::process::exit;
@@ -48,7 +47,6 @@ impl Terminal {
                     }
 
                     10 => break,
-
 
                     27 => {
                         if getch().unwrap_or(27) != 91 {
@@ -128,7 +126,6 @@ impl Terminal {
 
         Ok(String::from_utf8_lossy(&self.buffer).to_string())
     }
-
 
     fn backspace(&mut self) -> io::Result<()> {
         let stdout = stdout();
