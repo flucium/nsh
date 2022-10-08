@@ -126,6 +126,11 @@ impl Evaluator {
                         builtin::unset(&mut self.variable, args.pop_front().unwrap_or_default());
                     }
 
+                    "cd"=>{
+                        builtin::cd(args.pop_front().unwrap_or_default())?
+                        //
+                    }
+
                     _ => {
                         let is_child = self.child.is_some();
 
