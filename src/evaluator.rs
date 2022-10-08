@@ -1,3 +1,4 @@
+use crate::builtin;
 use crate::parser;
 use crate::variable::Variable;
 use std::collections::VecDeque;
@@ -111,41 +112,57 @@ impl Evaluator {
                         }
                     }
                 }
+                
+                //^^^^
+                match program.to_lowercase().as_str() {
+                    "set" => {
+                        builtin::set(
+                            &mut self.variable,
+                            args.pop_front().unwrap_or_default(),
+                            args.pop_front().unwrap_or_default(),
+                        );
+                    }
+                    "unset" => {
+                        builtin::unset(&mut self.variable, args.pop_front().unwrap_or_default());
+                    }
 
-                let is_child = self.child.is_some();
+                    _ => {
+                        let is_child = self.child.is_some();
 
-                let mut ps_result = process::Command::new(program.clone())
-                    .args(args)
-                    .stdin(if is_child {
-                        process::Stdio::piped()
-                    } else {
-                        process::Stdio::inherit()
-                    })
-                    .stdout(if self.is_pipe {
-                        process::Stdio::inherit()
-                    } else {
-                        process::Stdio::piped()
-                    })
-                    .stderr(process::Stdio::inherit())
-                    .spawn()?;
+                        let mut ps_result = process::Command::new(program)
+                            .args(args)
+                            .stdin(if is_child {
+                                process::Stdio::piped()
+                            } else {
+                                process::Stdio::inherit()
+                            })
+                            .stdout(if self.is_pipe {
+                                process::Stdio::inherit()
+                            } else {
+                                process::Stdio::piped()
+                            })
+                            .stderr(process::Stdio::inherit())
+                            .spawn()?;
 
-                if let Some(stdin) = ps_result.stdin.as_mut() {
-                    if let Some(mut child) = self.child.take() {
-                        if let Some(stdout) = child.stdout.take() {
-                            let bytes = stdout.bytes();
-                            for byte in bytes {
-                                let byte = vec![byte.unwrap()];
-                                stdin.write(&byte)?;
+                        if let Some(stdin) = ps_result.stdin.as_mut() {
+                            if let Some(mut child) = self.child.take() {
+                                if let Some(stdout) = child.stdout.take() {
+                                    let bytes = stdout.bytes();
+                                    for byte in bytes {
+                                        let byte = vec![byte.unwrap()];
+                                        stdin.write(&byte)?;
+                                    }
+                                }
                             }
                         }
+
+                        if is_child {
+                            ps_result.wait()?;
+                        }
+
+                        self.child = Some(ps_result)
                     }
                 }
-
-                if is_child {
-                    ps_result.wait()?;
-                }
-
-                self.child = Some(ps_result)
             }
 
             _ => {}
