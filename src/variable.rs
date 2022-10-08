@@ -29,6 +29,10 @@ impl Variable {
         }
     }
 
+    pub fn remove(&mut self,key:String){
+        self.0.remove(&key);
+    }
+
     // pub fn keys(&mut self) -> Vec<String> {
     //     self.0.keys().map(|k| k.to_string()).collect()
     // }
