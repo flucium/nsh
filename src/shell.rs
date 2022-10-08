@@ -50,15 +50,16 @@ impl Shell {
         match parse(source) {
             Ok(node) => {
                 let mut evaluator = Evaluator::new(node);
-
+                evaluator.variable(self.variable.to_owned());
                 if let Err(err) = evaluator.eval() {
                     eprintln!("{:?}",err);
                 }
-                // evaluator.wait();
                 
-                // if let Err(err) = evaluator.wait() {
-                //     eprintln!("{:?}",err);    
-                // }
+                if let Err(err) = evaluator.wait() {
+                    eprintln!("{:?}",err);    
+                }
+
+                self.variable = evaluator.get_variable().to_owned();
             }
             Err(err) => {
                 eprintln!("{:?}",err);
