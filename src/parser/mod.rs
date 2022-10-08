@@ -29,10 +29,10 @@ impl Parser {
                 break;
             }
 
-            // if let Some(node) = self.parse_vinsert()? {
-            //     nodes.push(node);
-            //     continue;
-            // }
+            if let Some(node) = self.parse_vinsert()? {
+                nodes.push(node);
+                continue;
+            }
 
             if let Some(node) = self.parse_close_fd() {
                 nodes.push(node);
@@ -59,45 +59,42 @@ impl Parser {
             }
         }
 
-        let mut tree = Node::Pipe(Pipe::new());
-
-        let (mut left_nodes, mut right_nodes): (Vec<_>, Vec<_>) = nodes
+        let (_, mut nodes): (Vec<_>, Vec<_>) = nodes
             .into_iter()
             .partition(|node| matches!(node, Node::Pipe(_)));
+        nodes.reverse();
 
-        left_nodes.reverse();
+        let pipe = Pipe::from(nodes);
 
-        right_nodes.reverse();
+        // let mut root: Node;
 
-        while let Some(item) = right_nodes.pop() {
-            if right_nodes.is_empty() {
-                tree = item;
-                break;
-            }
+        // let (mut blocks, mut nodes): (Vec<_>, Vec<_>) = nodes
+        //     .into_iter()
+        //     .partition(|node| matches!(node, Node::Block(_)));
 
-            match left_nodes.pop() {
-                Some(node) => match node {
-                    Node::Pipe(mut pipe) => {
-                        pipe.insert_left(item);
+        // while let Some(node) = nodes.pop() {
+        //     if nodes.is_empty() {
+        //         root = node;
+        //         break;
+        //     }
 
-                        if let Some(item) = right_nodes.pop() {
-                            pipe.insert_right(item);
-                        }
-                        // tree = Some(Node::Pipe(pipe));
-                        tree = Node::Pipe(pipe);
-                    }
+        //     if let Some(block) = blocks.pop() {
+        //         match block {
+        //             Node::Block(mut block) => {
+        //                 block.insert_left(node);
 
-                    _ => {}
-                },
+        //                 if let Some(node) = nodes.pop() {
+        //                     block.insert_right(node);
+        //                 }
 
-                None => tree = item,
-            }
+        //                 nodes.push(Node::Block(block));
+        //             }
+        //             _ => {}
+        //         }
+        //     }
+        // }
 
-            right_nodes.push(tree);
-            tree = Node::Pipe(Pipe::new());
-        }
-
-        Ok(tree)
+        Ok(Node::Pipe(pipe))
     }
 
     fn parse_pipe(&mut self) -> Option<Node> {
@@ -276,40 +273,54 @@ impl Parser {
         })))
     }
 
-    // fn parse_vinsert(&mut self) -> Result<Option<Node>, Error> {
-    //     let key = match self.parse_string() {
-    //         Some(key) => key,
-    //         None => return Ok(None),
-    //     };
+    fn parse_vinsert(&mut self) -> Result<Option<Node>, Error> {
+       
+        let key = match self.curr_tokens.pop(){
+            Some(token)=>{
+                match token{
+                    Token::String(string)=>string,
+                    _=>{
+                        self.curr_tokens.push(token);
+                        return Ok(None)
+                    }
+                }
+            }
+            None=>return Ok(None)
+        };
 
-    //     match self.curr_tokens.pop() {
-    //         Some(symbol) => {
-    //             if symbol != Token::Equal {
-    //                 match key {
-    //                     Node::String(string) => {
-    //                         self.curr_tokens.push(symbol);
+       
+        match self.curr_tokens.pop(){
+            Some(token)=>{
+                if !matches!(token,Token::Equal){
+                    self.curr_tokens.push(token);
+                    self.curr_tokens.push(Token::String(key));
+                    
+                    return Ok(None)
+                }
+            }
+            None=>{
+                self.curr_tokens.push(Token::String(key));
+                return Ok(None)
+            }
+        }
 
-    //                         self.curr_tokens.push(Token::String(string));
-    //                     }
-    //                     _ => {}
-    //                 }
+        let val = match self.curr_tokens.pop(){
+            Some(token)=>{
+                match token{
+                    Token::String(string)=>string,
+                    _=>return Err(Error::new("")),
+                }
+            }
+            None=>{
+                return Err(Error::new(""))
+            }
+        };
 
-    //                 return Ok(None);
-    //             }
-    //         }
-    //         None => return Ok(None),
-    //     }
-
-    //     let val = match self.parse_string() {
-    //         Some(val) => val,
-    //         None => return Err(Error::new("")),
-    //     };
-
-    //     Ok(Some(Node::VInsert(VInsert {
-    //         key: Some(Box::new(key)),
-    //         val: Some(Box::new(val)),
-    //     })))
-    // }
+        Ok(Some(Node::VInsert(VInsert {
+            key: Some(Box::new(Node::String(key))),
+            val: Some(Box::new(Node::String(val))),
+        })))
+    }
 
     fn parse_vreference(&mut self) -> Option<Node> {
         let token = self.curr_tokens.pop()?;
@@ -354,7 +365,6 @@ impl Parser {
     }
 }
 
-
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum Node {
     String(String),
@@ -368,7 +378,6 @@ pub enum Node {
     // Block(Block),
     Background(bool),
 }
-
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum RedirectKind {
@@ -419,7 +428,7 @@ impl Redirect {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct Command {
-    prefix: Option<Box<Node>>,
+    pub prefix: Option<Box<Node>>,
     suffix: Option<CommandSuffix>,
 }
 
@@ -483,40 +492,40 @@ impl CommandSuffix {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct Pipe {
-    left: Option<Box<Node>>,
-    right: Option<Box<Node>>,
+pub struct Pipe(Vec<Node>);
+
+impl From<Vec<Node>> for Pipe {
+    fn from(nodes: Vec<Node>) -> Self {
+        Self { 0: nodes }
+    }
+}
+
+impl Iterator for Pipe {
+    type Item = Node;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.pop()
+    }
 }
 
 impl Pipe {
     fn new() -> Self {
-        Self {
-            left: None,
-            right: None,
-        }
+        Self { 0: Vec::new() }
     }
 
-    fn insert_left(&mut self, node: Node) {
-        self.left = Some(Box::new(node))
+    fn push(&mut self, node: Node) {
+        self.0.push(node)
     }
 
-    fn insert_right(&mut self, node: Node) {
-        self.right = Some(Box::new(node))
-    }
-
-    pub fn take_left(&mut self) -> Option<Box<Node>> {
-        self.left.take()
-    }
-
-    pub fn take_right(&mut self) -> Option<Box<Node>> {
-        self.right.take()
+    pub fn pop(&mut self) -> Option<Node> {
+        self.0.pop()
     }
 }
 
 // #[derive(Debug, Clone, Eq, PartialEq)]
 // pub struct Block {
-//     left: Option<Box<Node>>,
-//     right: Option<Box<Node>>,
+//     pub left: Option<Box<Node>>,
+//     pub right: Option<Box<Node>>,
 // }
 
 // impl Block {
@@ -535,12 +544,16 @@ impl Pipe {
 //         self.right = Some(Box::new(node))
 //     }
 
-//     pub fn take_left(&mut self) -> Option<Box<Node>> {
+//     fn take_left(&mut self) -> Option<Box<Node>> {
 //         self.left.take()
 //     }
 
-//     pub fn take_right(&mut self) -> Option<Box<Node>> {
+//     fn take_right(&mut self) -> Option<Box<Node>> {
 //         self.right.take()
+//     }
+
+//     pub fn take(&mut self) -> Option<Box<Node>> {
+//         self.take_left().or_else(|| self.take_right())
 //     }
 // }
 

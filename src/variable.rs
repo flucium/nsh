@@ -8,15 +8,15 @@ impl Variable {
         Self { 0: HashMap::new() }
     }
 
-    pub fn insert(&mut self, key: &str, val: &str) {
+    pub fn insert(&mut self, key: String, val: String) {
         let mut value = String::new();
 
-        if let Some(string) = self.0.get(key) {
+        if let Some(string) = self.0.get(&key) {
             value.push_str(string);
             value.push(':');
         }
 
-        value.push_str(val);
+        value.push_str(&val);
 
         self.0.insert(key.to_string(), value);
     }

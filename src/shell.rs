@@ -54,7 +54,8 @@ impl Shell {
                 if let Err(err) = evaluator.eval() {
                     eprintln!("{:?}",err);
                 }
-
+                // evaluator.wait();
+                
                 // if let Err(err) = evaluator.wait() {
                 //     eprintln!("{:?}",err);    
                 // }
