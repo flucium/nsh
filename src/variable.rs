@@ -29,7 +29,7 @@ impl Variable {
         }
     }
 
-    pub fn keys(&mut self) -> Vec<String> {
-        self.0.keys().map(|k| k.to_string()).collect()
-    }
+    // pub fn keys(&mut self) -> Vec<String> {
+    //     self.0.keys().map(|k| k.to_string()).collect()
+    // }
 }
