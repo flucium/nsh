@@ -2,10 +2,12 @@ use crate::builtin;
 use crate::parser;
 use crate::variable::Variable;
 use std::collections::VecDeque;
-// use std::fs::File;
+use std::fs::File;
 use std::io;
 use std::io::Read;
 use std::io::Write;
+use std::os::unix::prelude::AsRawFd;
+use std::os::unix::prelude::FromRawFd;
 // use std::mem::ManuallyDrop;
 // use std::os::unix::prelude::AsRawFd;
 // use std::os::unix::prelude::FromRawFd;
@@ -82,9 +84,9 @@ impl Evaluator {
             parser::Node::Command(mut command) => {
                 let mut program = String::new();
                 let mut args = VecDeque::new();
-                // let mut ifiles = VecDeque::new();
-                // let mut ofiles = VecDeque::new();
-                // let mut efiles = VecDeque::new();
+                let mut ifiles = VecDeque::new();
+                let mut ofiles = VecDeque::new();
+                let mut efiles = VecDeque::new();
 
                 match command.take_prefix() {
                     Some(prefix) => match *prefix {
@@ -106,13 +108,63 @@ impl Evaluator {
                             parser::Node::String(string) => {
                                 args.push_front(string);
                             }
-                            // parser::Node::VReference(key)=>{}
-                            // parser::Node::Redirect(redirect) => {}
+                            parser::Node::VReference(key) => {
+                                args.push_front(self.variable.get(key).unwrap_or_default());
+                            }
+                            parser::Node::Redirect(mut redirect) => {
+                                let left = match redirect.take_left() {
+                                    Some(left) => match *left {
+                                        parser::Node::FD(fd) => fd as i32,
+                                        _ => continue,
+                                    },
+                                    None => continue,
+                                };
+
+                                // if left != 0 && matches!(redirect.kind(), RedirectKind::Input) {
+                                //     panic!("")
+                                // }
+
+                                let file = match redirect.take_right() {
+                                    Some(right) => match *right {
+                                        parser::Node::String(string) => File::options()
+                                            .create(true)
+                                            .write(true)
+                                            .read(true)
+                                            .open(string)?,
+
+                                        parser::Node::FD(fd) => unsafe {
+                                            File::from_raw_fd(fd as i32)
+                                        },
+
+                                        _ => continue,
+                                    },
+                                    None => continue,
+                                };
+
+                                if matches!(left, 0 | 1 | 2) == false {
+                                    unsafe {
+                                        libc::dup2(left, file.as_raw_fd());
+                                    }
+                                }
+
+                                match redirect.get_kind() {
+                                    parser::RedirectKind::Input => {
+                                        ifiles.push_front(file);
+                                    }
+                                    parser::RedirectKind::Output => {
+                                        if left == 2 {
+                                            efiles.push_front(file);
+                                        } else {
+                                            ofiles.push_front(file);
+                                        }
+                                    }
+                                }
+                            }
                             _ => {}
                         }
                     }
                 }
-                
+
                 //^^^^
                 match program.to_lowercase().as_str() {
                     "set" => {
@@ -126,7 +178,7 @@ impl Evaluator {
                         builtin::unset(&mut self.variable, args.pop_front().unwrap_or_default());
                     }
 
-                    "cd"=>{
+                    "cd" => {
                         builtin::cd(args.pop_front().unwrap_or_default())?
                         //
                     }
@@ -136,12 +188,12 @@ impl Evaluator {
 
                         let mut ps_result = process::Command::new(program)
                             .args(args)
-                            .stdin(if is_child {
+                            .stdin(if is_child || ifiles.is_empty() == false {
                                 process::Stdio::piped()
                             } else {
                                 process::Stdio::inherit()
                             })
-                            .stdout(if self.is_pipe {
+                            .stdout(if self.is_pipe && ofiles.is_empty() {
                                 process::Stdio::inherit()
                             } else {
                                 process::Stdio::piped()
@@ -159,7 +211,19 @@ impl Evaluator {
                                     }
                                 }
                             }
+
+                            //
+                            for mut ifile in ifiles {
+                                let mut buffer = Vec::new();
+                                ifile.read_to_end(&mut buffer)?;
+                                stdin.write_all(&buffer)?;
+                            }
                         }
+
+                        //
+                        // if let Some(stdout) = ps_result.stdout.as_mut() {
+                            
+                        // }
 
                         if is_child {
                             ps_result.wait()?;
