@@ -3,6 +3,7 @@ pub enum Cursor {
     Backspace,
     Left,
     Right,
+    LineClear,
 }
 
 impl Cursor {
@@ -12,6 +13,7 @@ impl Cursor {
             Cursor::Backspace => format!("\x08{}", " "),
             Cursor::Left => format!("\x1b[1D"),
             Cursor::Right => format!("\x1b[1C"),
+            Cursor::LineClear=>format!("\x1b[2K"),
         };
     }
 }
