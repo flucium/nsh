@@ -34,9 +34,9 @@ impl History {
         }
     }
 
-    pub fn len(&self)->usize{
-        self.1.len()
-    }
+    // pub fn len(&self)->usize{
+    //     self.1.len()
+    // }
 }
 
 // impl From<String> for History{}
