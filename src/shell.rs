@@ -35,6 +35,7 @@ impl Shell {
             local_profile.create()
         };
 
+        //とりあえずPANIC!
         match value {
             Ok(value) => {
                 for value in value.split('\n') {
@@ -43,14 +44,16 @@ impl Shell {
                             let mut evaluator = Evaluator::new(node);
                             evaluator.variable(self.variable.to_owned());
                             if let Err(err) = evaluator.eval() {
-                                panic!("")
+                                panic!("{err}")
                             }
                             if let Err(err) = evaluator.wait() {
-                                panic!("")
+                                panic!("{err}")
                             }
                             self.variable = evaluator.get_variable().to_owned();
                         }
-                        Err(err) => {}
+                        Err(err) => {
+                            panic!("{err}")
+                        }
                     }
                 }
             }
