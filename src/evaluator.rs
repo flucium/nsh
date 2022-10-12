@@ -387,6 +387,7 @@ impl Evaluator {
 
                 //^^^^
                 match program.to_lowercase().as_str() {
+
                     "set" => {
                         builtin::set(
                             &mut self.variable,
@@ -403,14 +404,6 @@ impl Evaluator {
                         //
                     }
 
-                    "exit" => {
-                        builtin::exit(
-                            args.pop_front()
-                                .unwrap_or("0".to_owned())
-                                .parse::<i32>()
-                                .unwrap_or(0),
-                        );
-                    }
 
                     _ => {
                         let is_child = self.child.is_some();
