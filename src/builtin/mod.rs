@@ -11,8 +11,8 @@ pub fn unset(variable: &mut Variable, key: String) {
     variable.remove(key)
 }
 
-pub fn cd(string: &str) -> io::Result<()> {
-    let path = Path::new(string);
+pub fn cd(string: String) -> io::Result<()> {
+    let path = Path::new(&string);
 
     env::set_current_dir(&path)?;
 
