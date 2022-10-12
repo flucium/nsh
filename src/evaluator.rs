@@ -2,12 +2,10 @@ use crate::builtin;
 use crate::parser;
 use crate::variable::Variable;
 use std::collections::VecDeque;
-use std::fs::File;
+// use std::fs::File;
 use std::io;
 use std::io::Read;
 use std::io::Write;
-use std::os::unix::prelude::AsRawFd;
-use std::os::unix::prelude::FromRawFd;
 // use std::mem::ManuallyDrop;
 // use std::os::unix::prelude::AsRawFd;
 // use std::os::unix::prelude::FromRawFd;
@@ -50,15 +48,15 @@ impl Evaluator {
     pub fn eval(&mut self) -> io::Result<()> {
         match self.node.to_owned() {
             parser::Node::Block(mut block) => {
-                while let Some(node) = block.take() {    
-                    self.is_pipe=true;
+                while let Some(node) = block.take() {
+                    self.is_pipe = true;
                     self.node = *node;
                     self.eval()?;
                 }
             }
             parser::Node::Pipe(pipe) => {
                 let mut pipe = pipe.peekable();
-                
+
                 while let Some(node) = pipe.next() {
                     self.is_pipe = !pipe.peek().is_some();
 
@@ -93,9 +91,9 @@ impl Evaluator {
             parser::Node::Command(mut command) => {
                 let mut program = String::new();
                 let mut args = VecDeque::new();
-                let mut ifiles = VecDeque::new();
-                let mut ofiles = VecDeque::new();
-                let mut efiles = VecDeque::new();
+                // let mut ifiles = VecDeque::new();
+                // let mut ofiles = VecDeque::new();
+                // let mut efiles = VecDeque::new();
 
                 match command.take_prefix() {
                     Some(prefix) => match *prefix {
@@ -120,55 +118,55 @@ impl Evaluator {
                             parser::Node::VReference(key) => {
                                 args.push_front(self.variable.get(key).unwrap_or_default());
                             }
-                            parser::Node::Redirect(mut redirect) => {
-                                let left = match redirect.take_left() {
-                                    Some(left) => match *left {
-                                        parser::Node::FD(fd) => fd as i32,
-                                        _ => continue,
-                                    },
-                                    None => continue,
-                                };
+                            // parser::Node::Redirect(mut redirect) => {
+                            //     let left = match redirect.take_left() {
+                            //         Some(left) => match *left {
+                            //             parser::Node::FD(fd) => fd as i32,
+                            //             _ => continue,
+                            //         },
+                            //         None => continue,
+                            //     };
 
-                                // if left != 0 && matches!(redirect.kind(), RedirectKind::Input) {
-                                //     panic!("")
-                                // }
+                            //     // if left != 0 && matches!(redirect.kind(), RedirectKind::Input) {
+                            //     //     panic!("")
+                            //     // }
 
-                                let file = match redirect.take_right() {
-                                    Some(right) => match *right {
-                                        parser::Node::String(string) => File::options()
-                                            .create(true)
-                                            .write(true)
-                                            .read(true)
-                                            .open(string)?,
+                            //     let file = match redirect.take_right() {
+                            //         Some(right) => match *right {
+                            //             parser::Node::String(string) => File::options()
+                            //                 .create(true)
+                            //                 .write(true)
+                            //                 .read(true)
+                            //                 .open(string)?,
 
-                                        parser::Node::FD(fd) => unsafe {
-                                            File::from_raw_fd(fd as i32)
-                                        },
+                            //             parser::Node::FD(fd) => unsafe {
+                            //                 File::from_raw_fd(fd as i32)
+                            //             },
 
-                                        _ => continue,
-                                    },
-                                    None => continue,
-                                };
+                            //             _ => continue,
+                            //         },
+                            //         None => continue,
+                            //     };
 
-                                if matches!(left, 0 | 1 | 2) == false {
-                                    unsafe {
-                                        libc::dup2(left, file.as_raw_fd());
-                                    }
-                                }
+                            //     if matches!(left, 0 | 1 | 2) == false {
+                            //         unsafe {
+                            //             libc::dup2(left, file.as_raw_fd());
+                            //         }
+                            //     }
 
-                                match redirect.get_kind() {
-                                    parser::RedirectKind::Input => {
-                                        ifiles.push_front(file);
-                                    }
-                                    parser::RedirectKind::Output => {
-                                        if left == 2 {
-                                            efiles.push_front(file);
-                                        } else {
-                                            ofiles.push_front(file);
-                                        }
-                                    }
-                                }
-                            }
+                            //     match redirect.get_kind() {
+                            //         parser::RedirectKind::Input => {
+                            //             ifiles.push_front(file);
+                            //         }
+                            //         parser::RedirectKind::Output => {
+                            //             if left == 2 {
+                            //                 efiles.push_front(file);
+                            //             } else {
+                            //                 ofiles.push_front(file);
+                            //             }
+                            //         }
+                            //     }
+                            // }
                             _ => {}
                         }
                     }
@@ -197,12 +195,14 @@ impl Evaluator {
 
                         let mut ps_result = process::Command::new(program)
                             .args(args)
-                            .stdin(if is_child || ifiles.is_empty() == false {
+                            // .stdin(if is_child || ifiles.is_empty() == false {
+                            .stdin(if is_child {
                                 process::Stdio::piped()
                             } else {
                                 process::Stdio::inherit()
                             })
-                            .stdout(if self.is_pipe && ofiles.is_empty() {
+                            // .stdout(if self.is_pipe && ofiles.is_empty() {
+                            .stdout(if self.is_pipe {
                                 process::Stdio::inherit()
                             } else {
                                 process::Stdio::piped()
