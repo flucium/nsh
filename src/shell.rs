@@ -1,5 +1,4 @@
 use crate::evaluator::Evaluator;
-use crate::evaluator::Evaluator2;
 use crate::history::History;
 use crate::parser;
 use crate::parser::lexer::Lexer;
@@ -37,26 +36,22 @@ impl Shell {
 
         //とりあえずPANIC!
         match value {
-            Ok(value) => {
-                for value in value.split('\n') {
-                    match parse(value.to_owned()) {
-                        Ok(node) => {
-                            let mut evaluator = Evaluator::new(node);
-                            evaluator.variable(self.variable.to_owned());
-                            if let Err(err) = evaluator.eval() {
-                                panic!("{err}")
-                            }
-                            if let Err(err) = evaluator.wait() {
-                                panic!("{err}")
-                            }
-                            self.variable = evaluator.get_variable().to_owned();
-                        }
-                        Err(err) => {
-                            panic!("{err}")
-                        }
+            Ok(value) => match parse(value.to_owned()) {
+                Ok(node) => {
+                    let mut evaluator = Evaluator::new(node);
+                    evaluator.variable(self.variable.to_owned());
+                    if let Err(err) = evaluator.eval() {
+                        panic!("{err}")
                     }
+                    if let Err(err) = evaluator.wait() {
+                        panic!("{err}")
+                    }
+                    self.variable = evaluator.get_variable().to_owned();
                 }
-            }
+                Err(err) => {
+                    panic!("{err}")
+                }
+            },
             Err(err) => panic!("{err}"),
         }
 
@@ -93,7 +88,7 @@ impl Shell {
 
         match parse(source) {
             Ok(node) => {
-                let mut evaluator = Evaluator2::new(node);
+                let mut evaluator = Evaluator::new(node);
                 evaluator.variable(self.variable.to_owned());
                 if let Err(err) = evaluator.eval() {
                     eprintln!("{:?}", err);
@@ -115,6 +110,7 @@ impl Shell {
 fn parse(source: String) -> Result<parser::Node, parser::Error> {
     Parser::new(Lexer::new(
         source
+            .replace('\n', " ;")
             .replace('~', &env::var("HOME").unwrap_or("/".to_owned()))
             .chars()
             .collect(),
