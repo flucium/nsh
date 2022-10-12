@@ -8,6 +8,7 @@ mod prompt;
 mod shell;
 mod terminal;
 mod variable;
+mod history;
 fn main() {
     Shell::new().initialize().repl();
 }
