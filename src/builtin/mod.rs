@@ -2,7 +2,6 @@ use crate::variable::Variable;
 use std::path::Path;
 use std::io;
 use std::env;
-use std::process;
 
 pub fn set(variable: &mut Variable, key: String, val: String) {
     variable.insert(key, val)
@@ -22,6 +21,3 @@ pub fn cd(string: String) -> io::Result<()> {
     Ok(())
 }
 
-pub fn exit(code: i32) -> ! {
-    process::exit(code)
-}
