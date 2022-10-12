@@ -1,4 +1,5 @@
 use crate::ansi;
+use crate::history::History;
 use std::io;
 use std::io::{stdout, Write};
 use std::process::exit;
@@ -8,6 +9,7 @@ pub struct Terminal {
     buffer_index: usize,
     prompt: String,
     origin_termios: libc::termios,
+    history: Option<History>,
 }
 
 impl Terminal {
@@ -15,11 +17,20 @@ impl Terminal {
         Self {
             buffer: Vec::new(),
             buffer_index: 0,
-
             prompt: String::new(),
             origin_termios: termios(),
+            history: None,
         }
     }
+
+    pub fn history(&mut self, history: History) -> &mut Terminal {
+        self.history = Some(history);
+        self
+    }
+
+    // pub fn get_history(&self) -> Option<&History> {
+    //     self.history.as_ref()
+    // }
 
     pub fn prompt(&mut self, prompt: String) -> &mut Terminal {
         self.prompt = prompt;
@@ -55,10 +66,62 @@ impl Terminal {
 
                         match getch().unwrap_or(91) {
                             //up
-                            65 => {}
+                            65 => {
+                                if let Some(history) = self.history.as_mut() {
+                                    if let Some(string) = history.next() {
+                                        self.buffer.clear();
+                                        self.buffer_index = 0;
+                                        self.buffer.write_all(string.as_bytes())?;
+
+                                        stdout.write_all(
+                                            format!(
+                                                "\r{}{}",
+                                                ansi::Cursor::LineClear.get_esc_code(),
+                                                self.prompt
+                                            )
+                                            .as_bytes(),
+                                        )?;
+
+                                        stdout.write_all(
+                                            format!(
+                                                "\r{}{}",
+                                                self.prompt,
+                                                String::from_utf8_lossy(&self.buffer)
+                                            )
+                                            .as_bytes(),
+                                        )?;
+                                    }
+                                }
+                            }
 
                             //down
-                            66 => {}
+                            66 => {
+                                if let Some(history) = self.history.as_mut() {
+                                    if let Some(string) = history.prev() {
+                                        self.buffer.clear();
+                                        self.buffer_index = 0;
+                                        self.buffer.write_all(string.as_bytes())?;
+
+                                        stdout.write_all(
+                                            format!(
+                                                "\r{}{}",
+                                                ansi::Cursor::LineClear.get_esc_code(),
+                                                self.prompt
+                                            )
+                                            .as_bytes(),
+                                        )?;
+
+                                        stdout.write_all(
+                                            format!(
+                                                "\r{}{}",
+                                                self.prompt,
+                                                String::from_utf8_lossy(&self.buffer)
+                                            )
+                                            .as_bytes(),
+                                        )?;
+                                    }
+                                }
+                            }
 
                             //right
                             67 => {
@@ -124,7 +187,13 @@ impl Terminal {
 
         stdout.write(b"\n")?;
 
-        Ok(String::from_utf8_lossy(&self.buffer).to_string())
+        let string = String::from_utf8_lossy(&self.buffer);
+
+        if let Some(history) = self.history.as_mut() {
+            history.insert(string.to_string());
+        }
+
+        Ok(string.to_string())
     }
 
     fn backspace(&mut self) -> io::Result<()> {
