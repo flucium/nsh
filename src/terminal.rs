@@ -76,7 +76,7 @@ impl Terminal {
                                         stdout.write_all(
                                             format!(
                                                 "\r{}{}",
-                                                ansi::Cursor::LineClear.get_esc_code(),
+                                                ansi::Cursor::ClearLine.get_esc_code(),
                                                 self.prompt
                                             )
                                             .as_bytes(),
@@ -105,7 +105,7 @@ impl Terminal {
                                         stdout.write_all(
                                             format!(
                                                 "\r{}{}",
-                                                ansi::Cursor::LineClear.get_esc_code(),
+                                                ansi::Cursor::ClearLine.get_esc_code(),
                                                 self.prompt
                                             )
                                             .as_bytes(),
