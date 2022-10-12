@@ -13,7 +13,6 @@ use std::os::unix::prelude::FromRawFd;
 // use std::os::unix::prelude::FromRawFd;
 use std::process;
 
-
 pub struct Evaluator2 {
     node: parser::Node,
     child: Option<process::Child>,
@@ -28,7 +27,6 @@ impl Evaluator2 {
             child: None,
             is_pipe: false,
             variable: Variable::new(),
-    
         }
     }
 
@@ -217,8 +215,6 @@ impl Evaluator2 {
                             }
 
                             //
-
-                            
                         }
 
                         if is_child {
@@ -407,6 +403,15 @@ impl Evaluator {
                         //
                     }
 
+                    "exit" => {
+                        builtin::exit(
+                            args.pop_front()
+                                .unwrap_or("0".to_owned())
+                                .parse::<i32>()
+                                .unwrap_or(0),
+                        );
+                    }
+
                     _ => {
                         let is_child = self.child.is_some();
 
@@ -459,4 +464,3 @@ impl Evaluator {
         Ok(())
     }
 }
-
