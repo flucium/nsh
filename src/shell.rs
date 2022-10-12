@@ -1,4 +1,6 @@
 use crate::evaluator::Evaluator;
+use crate::evaluator::Evaluator2;
+use crate::history::History;
 use crate::parser;
 use crate::parser::lexer::Lexer;
 use crate::parser::Parser;
@@ -9,7 +11,6 @@ use std::env;
 use std::fs::File;
 use std::io;
 use std::io::{Read, Write};
-use std::os::unix::prelude::{ FromRawFd};
 use std::path::PathBuf;
 
 pub struct Shell {
@@ -26,7 +27,47 @@ impl Shell {
     }
 
     pub fn initialize(&mut self) -> &mut Self {
+        let local_profile = Profile::new(ProfileKind::Local);
+
+        let value = if local_profile.exists() {
+            local_profile.read()
+        } else {
+            local_profile.create()
+        };
+
+        match value {
+            Ok(value) => {
+                for value in value.split('\n') {
+                    match parse(value.to_owned()) {
+                        Ok(node) => {
+                            let mut evaluator = Evaluator::new(node);
+                            evaluator.variable(self.variable.to_owned());
+                            if let Err(err) = evaluator.eval() {
+                                panic!("")
+                            }
+                            if let Err(err) = evaluator.wait() {
+                                panic!("")
+                            }
+                            self.variable = evaluator.get_variable().to_owned();
+                        }
+                        Err(err) => {}
+                    }
+                }
+            }
+            Err(err) => panic!("{err}"),
+        }
+
+        self.init_history();
+
         self
+    }
+
+    fn init_history(&mut self) {
+        if let Some(val) = self.variable.get("NSH_HISTORY".to_owned()) {
+            if val.parse::<bool>().unwrap_or(false) {
+                self.terminal.history(History::new());
+            }
+        }
     }
 
     pub fn repl(&mut self) {
@@ -49,20 +90,20 @@ impl Shell {
 
         match parse(source) {
             Ok(node) => {
-                let mut evaluator = Evaluator::new(node);
+                let mut evaluator = Evaluator2::new(node);
                 evaluator.variable(self.variable.to_owned());
                 if let Err(err) = evaluator.eval() {
-                    eprintln!("{:?}",err);
+                    eprintln!("{:?}", err);
                 }
-                
+
                 if let Err(err) = evaluator.wait() {
-                    eprintln!("{:?}",err);    
+                    eprintln!("{:?}", err);
                 }
 
                 self.variable = evaluator.get_variable().to_owned();
             }
             Err(err) => {
-                eprintln!("{:?}",err);
+                eprintln!("{:?}", err);
             }
         }
     }
@@ -76,9 +117,6 @@ fn parse(source: String) -> Result<parser::Node, parser::Error> {
             .collect(),
     ))
     .parse()
-
-    
-    
 }
 
 struct Profile(ProfileKind);
@@ -134,18 +172,18 @@ enum ProfileKind {
     Local,
 }
 
-fn open_from_raw_fd(fd: i32) -> File {
-    unsafe { File::from_raw_fd(fd) }
-}
+// fn open_from_raw_fd(fd: i32) -> File {
+//     unsafe { File::from_raw_fd(fd) }
+// }
 
-fn libc_dup2(src_fd: i32, dst_fd: i32) {
-    unsafe {
-        libc::dup2(src_fd, dst_fd);
-    }
-}
+// fn libc_dup2(src_fd: i32, dst_fd: i32) {
+//     unsafe {
+//         libc::dup2(src_fd, dst_fd);
+//     }
+// }
 
-fn libc_close(fd: u32) {
-    unsafe {
-        libc::close(fd as i32);
-    }
-}
+// fn libc_close(fd: u32) {
+//     unsafe {
+//         libc::close(fd as i32);
+//     }
+// }
