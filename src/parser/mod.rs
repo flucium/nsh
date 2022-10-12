@@ -393,25 +393,25 @@ pub struct Redirect {
 }
 
 impl Redirect {
-    pub fn new(kind: RedirectKind) -> Self {
-        Self {
-            kind: kind,
-            left: None,
-            right: None,
-        }
-    }
+    // fn new(kind: RedirectKind) -> Self {
+    //     Self {
+    //         kind: kind,
+    //         left: None,
+    //         right: None,
+    //     }
+    // }
 
-    pub fn left(&self) -> Option<&Box<Node>> {
-        self.left.as_ref()
-    }
+    // pub fn left(&self) -> Option<&Box<Node>> {
+    //     self.left.as_ref()
+    // }
 
-    pub fn right(&self) -> Option<&Box<Node>> {
-        self.right.as_ref()
-    }
+    // pub fn right(&self) -> Option<&Box<Node>> {
+    //     self.right.as_ref()
+    // }
 
-    pub fn kind(&self) -> &RedirectKind {
-        &self.kind
-    }
+    // pub fn kind(&self) -> &RedirectKind {
+    //     &self.kind
+    // }
 
     pub fn take_left(&mut self) -> Option<Box<Node>> {
         self.left.take()
@@ -433,28 +433,28 @@ pub struct Command {
 }
 
 impl Command {
-    pub fn new() -> Self {
-        Self {
-            prefix: None,
-            suffix: None,
-        }
-    }
+    // fn new() -> Self {
+    //     Self {
+    //         prefix: None,
+    //         suffix: None,
+    //     }
+    // }
 
-    fn insert_prefix(&mut self, node: Node) -> Result<(), Error> {
-        match node {
-            Node::Pipe(_) | Node::VInsert(_) | Node::Command(_) => {
-                Err(Error::new("some tokens cannot be passed as commands"))
-            }
-            _ => {
-                self.prefix = Some(Box::new(node));
-                Ok(())
-            }
-        }
-    }
+    // fn insert_prefix(&mut self, node: Node) -> Result<(), Error> {
+    //     match node {
+    //         Node::Pipe(_) | Node::VInsert(_) | Node::Command(_) => {
+    //             Err(Error::new("some tokens cannot be passed as commands"))
+    //         }
+    //         _ => {
+    //             self.prefix = Some(Box::new(node));
+    //             Ok(())
+    //         }
+    //     }
+    // }
 
-    fn insert_suffix(&mut self, suffix: CommandSuffix) {
-        self.suffix = Some(suffix);
-    }
+    // fn insert_suffix(&mut self, suffix: CommandSuffix) {
+    //     self.suffix = Some(suffix);
+    // }
 
     pub fn take_prefix(&mut self) -> Option<Box<Node>> {
         self.prefix.take()
@@ -513,9 +513,9 @@ impl Pipe {
         Self { 0: Vec::new() }
     }
 
-    fn push(&mut self, node: Node) {
-        self.0.push(node)
-    }
+    // fn push(&mut self, node: Node) {
+    //     self.0.push(node)
+    // }
 
     pub fn pop(&mut self) -> Option<Node> {
         self.0.pop()
@@ -564,20 +564,20 @@ pub struct VInsert {
 }
 
 impl VInsert {
-    fn new() -> Self {
-        Self {
-            key: None,
-            val: None,
-        }
-    }
+    // fn new() -> Self {
+    //     Self {
+    //         key: None,
+    //         val: None,
+    //     }
+    // }
 
-    fn insert_key(&mut self, key: Node) {
-        self.key = Some(Box::new(key))
-    }
+    // fn insert_key(&mut self, key: Node) {
+    //     self.key = Some(Box::new(key))
+    // }
 
-    fn insert_val(&mut self, val: Node) {
-        self.val = Some(Box::new(val))
-    }
+    // fn insert_val(&mut self, val: Node) {
+    //     self.val = Some(Box::new(val))
+    // }
     pub fn take_key(&mut self) -> Option<Box<Node>> {
         self.key.take()
     }
@@ -618,6 +618,6 @@ impl Error {
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{}", self.message)
     }
 }
