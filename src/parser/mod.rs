@@ -4,12 +4,13 @@ use self::lexer::Lexer;
 use self::token::Token;
 use std::fmt;
 use std::fmt::Display;
-use std::iter::Peekable;
 
+use std::iter::Peekable;
 pub struct Parser {
     lexer: Peekable<Lexer>,
     curr_tokens: Vec<Token>,
 }
+
 
 impl Parser {
     pub fn new(lexer: Lexer) -> Self {
@@ -44,10 +45,10 @@ impl Parser {
                 continue;
             }
 
-            // if let Some(node) = self.parse_block() {
-            //     nodes.push(node);
-            //     continue;
-            // }
+            if let Some(node) = self.parse_block() {
+                nodes.push(node);
+                continue;
+            }
 
             if let Some(node) = self.parse_pipe().or(self.parse_command()?) {
                 nodes.push(node);
@@ -59,43 +60,121 @@ impl Parser {
             }
         }
 
-        let (_, mut nodes): (Vec<_>, Vec<_>) = nodes
-            .into_iter()
-            .partition(|node| matches!(node, Node::Pipe(_)));
-        nodes.reverse();
+        let mut root = Block::new();
 
-        let pipe = Pipe::from(nodes);
+        let mut buffer = Vec::new();
+        for node in nodes {
+            match node {
+                Node::Block(_) => {
+                    if buffer.iter().any(|node| matches!(node, Node::Pipe(_))) {
+                        let (_, items): (_, Vec<Node>) = buffer
+                            .into_iter()
+                            .partition(|node| matches!(node, Node::Pipe(_)));
 
-        // let mut root: Node;
+                        root.insert_left(Node::Pipe(Pipe::from(items)));
+                        buffer = Vec::new();
+                    } else {
+                        for node in buffer.pop() {
+                            root.insert(node);
+                        }
+                    }
+                }
+                _ => {
+                    buffer.push(node);
+                }
+            }
+        }
 
-        // let (mut blocks, mut nodes): (Vec<_>, Vec<_>) = nodes
-        //     .into_iter()
-        //     .partition(|node| matches!(node, Node::Block(_)));
+        if buffer.is_empty() == false {
+            let (_, mut items): (_, Vec<Node>) = buffer
+                .into_iter()
+                .partition(|node| matches!(node, Node::Pipe(_)));
+            items.reverse();
+            root.insert(Node::Pipe(Pipe::from(items)));
+        }
 
-        // while let Some(node) = nodes.pop() {
-        //     if nodes.is_empty() {
-        //         root = node;
-        //         break;
-        //     }
-
-        //     if let Some(block) = blocks.pop() {
-        //         match block {
-        //             Node::Block(mut block) => {
-        //                 block.insert_left(node);
-
-        //                 if let Some(node) = nodes.pop() {
-        //                     block.insert_right(node);
-        //                 }
-
-        //                 nodes.push(Node::Block(block));
-        //             }
-        //             _ => {}
-        //         }
-        //     }
-        // }
-
-        Ok(Node::Pipe(pipe))
+        Ok(Node::Block(root))
     }
+
+    // pub fn parse(&mut self) -> Result<Node, Error> {
+    //     let mut nodes = Vec::new();
+
+    //     loop {
+    //         self.curr_tokens = self.read_tokens();
+
+    //         if self.curr_tokens.is_empty() {
+    //             break;
+    //         }
+
+    //         if let Some(node) = self.parse_vinsert()? {
+    //             nodes.push(node);
+    //             continue;
+    //         }
+
+    //         if let Some(node) = self.parse_close_fd() {
+    //             nodes.push(node);
+    //             continue;
+    //         }
+
+    //         if let Some(node) = self.parse_redirect()? {
+    //             nodes.push(node);
+    //             continue;
+    //         }
+
+    //         // if let Some(node) = self.parse_block() {
+
+    //         //     nodes.push(node);
+
+    //         //     continue;
+    //         // }
+
+    //         if let Some(node) = self.parse_pipe().or(self.parse_command()?) {
+    //             nodes.push(node);
+    //             continue;
+    //         }
+
+    //         if let Some(token) = self.curr_tokens.pop() {
+    //             Err(Error::new(format!("illegal token: {token}").as_str()))?
+    //         }
+    //     }
+
+    //     let (_, mut nodes): (Vec<_>, Vec<_>) = nodes
+    //         .into_iter()
+    //         .partition(|node| matches!(node, Node::Pipe(_)));
+    //     nodes.reverse();
+
+    //     let pipe = Pipe::from(nodes);
+
+    //     // let mut root: Node;
+
+    //     // let (mut blocks, mut nodes): (Vec<_>, Vec<_>) = nodes
+    //     //     .into_iter()
+    //     //     .partition(|node| matches!(node, Node::Block(_)));
+
+    //     // while let Some(node) = nodes.pop() {
+    //     //     if nodes.is_empty() {
+    //     //         root = node;
+    //     //         break;
+    //     //     }
+
+    //     //     if let Some(block) = blocks.pop() {
+    //     //         match block {
+    //     //             Node::Block(mut block) => {
+    //     //                 block.insert_left(node);
+
+    //     //                 if let Some(node) = nodes.pop() {
+    //     //                     block.insert_right(node);
+    //     //                 }
+
+    //     //                 nodes.push(Node::Block(block));
+    //     //             }
+    //     //             _ => {}
+    //     //         }
+    //     //     }
+    //     // }
+
+    //     Ok(Node::Pipe(pipe))
+    // }
 
     fn parse_pipe(&mut self) -> Option<Node> {
         match self.curr_tokens.last() {
@@ -107,15 +186,15 @@ impl Parser {
         }
     }
 
-    // fn parse_block(&mut self) -> Option<Node> {
-    //     match self.curr_tokens.last() {
-    //         Some(Token::Semicolon) => {
-    //             self.curr_tokens.pop().unwrap();
-    //             Some(Node::Block(Block::new()))
-    //         }
-    //         _ => None,
-    //     }
-    // }
+    fn parse_block(&mut self) -> Option<Node> {
+        match self.curr_tokens.last() {
+            Some(Token::Semicolon) => {
+                self.curr_tokens.pop().unwrap();
+                Some(Node::Block(Block::new()))
+            }
+            _ => None,
+        }
+    }
 
     fn parse_string(&mut self) -> Option<Node> {
         match self.curr_tokens.last() {
@@ -274,46 +353,38 @@ impl Parser {
     }
 
     fn parse_vinsert(&mut self) -> Result<Option<Node>, Error> {
-       
-        let key = match self.curr_tokens.pop(){
-            Some(token)=>{
-                match token{
-                    Token::String(string)=>string,
-                    _=>{
-                        self.curr_tokens.push(token);
-                        return Ok(None)
-                    }
+        let key = match self.curr_tokens.pop() {
+            Some(token) => match token {
+                Token::String(string) => string,
+                _ => {
+                    self.curr_tokens.push(token);
+                    return Ok(None);
                 }
-            }
-            None=>return Ok(None)
+            },
+            None => return Ok(None),
         };
 
-       
-        match self.curr_tokens.pop(){
-            Some(token)=>{
-                if !matches!(token,Token::Equal){
+        match self.curr_tokens.pop() {
+            Some(token) => {
+                if !matches!(token, Token::Equal) {
                     self.curr_tokens.push(token);
                     self.curr_tokens.push(Token::String(key));
-                    
-                    return Ok(None)
+
+                    return Ok(None);
                 }
             }
-            None=>{
+            None => {
                 self.curr_tokens.push(Token::String(key));
-                return Ok(None)
+                return Ok(None);
             }
         }
 
-        let val = match self.curr_tokens.pop(){
-            Some(token)=>{
-                match token{
-                    Token::String(string)=>string,
-                    _=>return Err(Error::new("")),
-                }
-            }
-            None=>{
-                return Err(Error::new(""))
-            }
+        let val = match self.curr_tokens.pop() {
+            Some(token) => match token {
+                Token::String(string) => string,
+                _ => return Err(Error::new("")),
+            },
+            None => return Err(Error::new("")),
         };
 
         Ok(Some(Node::VInsert(VInsert {
@@ -375,7 +446,7 @@ pub enum Node {
     Redirect(Redirect),
     Command(Command),
     Pipe(Pipe),
-    // Block(Block),
+    Block(Block),
     Background(bool),
 }
 
@@ -513,49 +584,62 @@ impl Pipe {
         Self { 0: Vec::new() }
     }
 
-    // fn push(&mut self, node: Node) {
-    //     self.0.push(node)
-    // }
+    fn push(&mut self, node: Node) {
+        self.0.push(node)
+    }
 
     pub fn pop(&mut self) -> Option<Node> {
         self.0.pop()
     }
 }
 
-// #[derive(Debug, Clone, Eq, PartialEq)]
-// pub struct Block {
-//     pub left: Option<Box<Node>>,
-//     pub right: Option<Box<Node>>,
-// }
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct Block {
+    left: Option<Box<Node>>,
+    right: Option<Box<Node>>,
+}
 
-// impl Block {
-//     fn new() -> Self {
-//         Self {
-//             left: None,
-//             right: None,
-//         }
-//     }
+impl Block {
+    fn new() -> Self {
+        Self {
+            left: None,
+            right: None,
+        }
+    }
 
-//     fn insert_left(&mut self, node: Node) {
-//         self.left = Some(Box::new(node))
-//     }
+    fn insert(&mut self, node: Node) {
+        if self.left.is_none() {
+            self.insert_left(node);
+        } else if self.right.is_none() {
+            self.insert_right(node);
+        } else {
+            let mut block = Block::new();
+            block.insert_left(Node::Block(self.clone()));
+            block.insert_right(node);
+            *self = block;
+        }
+    }
 
-//     fn insert_right(&mut self, node: Node) {
-//         self.right = Some(Box::new(node))
-//     }
+    fn insert_left(&mut self, node: Node) {
+        self.left = Some(Box::new(node))
+    }
 
-//     fn take_left(&mut self) -> Option<Box<Node>> {
-//         self.left.take()
-//     }
+    fn insert_right(&mut self, node: Node) {
+        self.right = Some(Box::new(node))
+    }
 
-//     fn take_right(&mut self) -> Option<Box<Node>> {
-//         self.right.take()
-//     }
+    fn take_left(&mut self) -> Option<Box<Node>> {
+        self.left.take()
+    }
 
-//     pub fn take(&mut self) -> Option<Box<Node>> {
-//         self.take_left().or_else(|| self.take_right())
-//     }
-// }
+    fn take_right(&mut self) -> Option<Box<Node>> {
+        self.right.take()
+    }
+
+    pub fn take(&mut self) -> Option<Box<Node>> {
+        self.take_left().or_else(|| self.take_right())
+    }
+}
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct VInsert {
