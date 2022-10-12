@@ -484,17 +484,17 @@ impl Redirect {
     //     &self.kind
     // }
 
-    pub fn take_left(&mut self) -> Option<Box<Node>> {
-        self.left.take()
-    }
+    // pub fn take_left(&mut self) -> Option<Box<Node>> {
+    //     self.left.take()
+    // }
 
-    pub fn take_right(&mut self) -> Option<Box<Node>> {
-        self.right.take()
-    }
+    // pub fn take_right(&mut self) -> Option<Box<Node>> {
+    //     self.right.take()
+    // }
 
-    pub fn get_kind(&mut self) -> &RedirectKind {
-        &self.kind
-    }
+    // pub fn get_kind(&mut self) -> &RedirectKind {
+    //     &self.kind
+    // }
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -584,9 +584,9 @@ impl Pipe {
         Self { 0: Vec::new() }
     }
 
-    fn push(&mut self, node: Node) {
-        self.0.push(node)
-    }
+    // fn push(&mut self, node: Node) {
+    //     self.0.push(node)
+    // }
 
     pub fn pop(&mut self) -> Option<Node> {
         self.0.pop()
