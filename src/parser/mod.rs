@@ -4,7 +4,6 @@ use self::lexer::Lexer;
 use self::token::Token;
 use std::fmt;
 use std::fmt::Display;
-
 use std::iter::Peekable;
 pub struct Parser {
     lexer: Peekable<Lexer>,
@@ -95,86 +94,6 @@ impl Parser {
 
         Ok(Node::Block(root))
     }
-
-    // pub fn parse(&mut self) -> Result<Node, Error> {
-    //     let mut nodes = Vec::new();
-
-    //     loop {
-    //         self.curr_tokens = self.read_tokens();
-
-    //         if self.curr_tokens.is_empty() {
-    //             break;
-    //         }
-
-    //         if let Some(node) = self.parse_vinsert()? {
-    //             nodes.push(node);
-    //             continue;
-    //         }
-
-    //         if let Some(node) = self.parse_close_fd() {
-    //             nodes.push(node);
-    //             continue;
-    //         }
-
-    //         if let Some(node) = self.parse_redirect()? {
-    //             nodes.push(node);
-    //             continue;
-    //         }
-
-    //         // if let Some(node) = self.parse_block() {
-
-    //         //     nodes.push(node);
-
-    //         //     continue;
-    //         // }
-
-    //         if let Some(node) = self.parse_pipe().or(self.parse_command()?) {
-    //             nodes.push(node);
-    //             continue;
-    //         }
-
-    //         if let Some(token) = self.curr_tokens.pop() {
-    //             Err(Error::new(format!("illegal token: {token}").as_str()))?
-    //         }
-    //     }
-
-    //     let (_, mut nodes): (Vec<_>, Vec<_>) = nodes
-    //         .into_iter()
-    //         .partition(|node| matches!(node, Node::Pipe(_)));
-    //     nodes.reverse();
-
-    //     let pipe = Pipe::from(nodes);
-
-    //     // let mut root: Node;
-
-    //     // let (mut blocks, mut nodes): (Vec<_>, Vec<_>) = nodes
-    //     //     .into_iter()
-    //     //     .partition(|node| matches!(node, Node::Block(_)));
-
-    //     // while let Some(node) = nodes.pop() {
-    //     //     if nodes.is_empty() {
-    //     //         root = node;
-    //     //         break;
-    //     //     }
-
-    //     //     if let Some(block) = blocks.pop() {
-    //     //         match block {
-    //     //             Node::Block(mut block) => {
-    //     //                 block.insert_left(node);
-
-    //     //                 if let Some(node) = nodes.pop() {
-    //     //                     block.insert_right(node);
-    //     //                 }
-
-    //     //                 nodes.push(Node::Block(block));
-    //     //             }
-    //     //             _ => {}
-    //     //         }
-    //     //     }
-    //     // }
-
-    //     Ok(Node::Pipe(pipe))
-    // }
 
     fn parse_pipe(&mut self) -> Option<Node> {
         match self.curr_tokens.last() {
@@ -674,32 +593,18 @@ impl VInsert {
 #[derive(Debug)]
 pub struct Error {
     message: String,
-    // tokens:[Token;3],
+
 }
 
 impl Error {
     pub fn new(message: &str) -> Self {
         Self {
             message: String::from(message),
-            // tokens:tokens,
+
         }
     }
 
-    // pub fn get(&self) -> &str {
-    //     &self.message
-    // }
-
-    // pub fn get_detail(&self){
-
-    // }
 }
-
-// impl ToString for Error {
-//     fn to_string(&self) -> String {
-//         self.message.to_string()
-//     }
-// }
-
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.message)
