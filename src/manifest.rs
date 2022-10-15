@@ -3,5 +3,5 @@ pub fn name()->&'static str{
 }
 
 pub fn version()->&'static str{    
-    "1.0.0 β"	
+    "1.0.0"
 }
