@@ -567,20 +567,6 @@ pub struct VInsert {
 }
 
 impl VInsert {
-    // fn new() -> Self {
-    //     Self {
-    //         key: None,
-    //         val: None,
-    //     }
-    // }
-
-    // fn insert_key(&mut self, key: Node) {
-    //     self.key = Some(Box::new(key))
-    // }
-
-    // fn insert_val(&mut self, val: Node) {
-    //     self.val = Some(Box::new(val))
-    // }
     pub fn take_key(&mut self) -> Option<Box<Node>> {
         self.key.take()
     }
