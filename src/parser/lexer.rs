@@ -1,6 +1,5 @@
 use crate::parser::token::Token;
 use std::collections::VecDeque;
-// use std::mem::swap;
 
 pub struct Lexer {
     input: VecDeque<char>,
@@ -24,21 +23,10 @@ impl Lexer {
     }
 
     fn pop_front(&mut self) -> Option<Token> {
-        // let mut token = self.peek_token.take().or_else(|| self.read());
         
         let token = self.peek_token.take().or_else(|| self.read());
 
         self.peek_token = self.read();
-
-        // if self.peek_token.as_ref() == Some(&Token::Equal) {
-        //     swap(&mut token, &mut self.peek_token);
-        // }
-        // if matches!(
-        //     self.peek_token.as_ref(),
-        //     Some(Token::Equal) | Some(Token::Lt) | Some(Token::Gt)
-        // ) {
-        //     swap(&mut token, &mut self.peek_token);
-        // }
 
         token
     }
