@@ -19,7 +19,7 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<Tree> {
-        
+
         Ok(Tree::new())
     }
 }
@@ -324,6 +324,11 @@ impl Tree {
     }
 }
 
+// used with Pipe and CommandSuffix.
+// use it when creating a structure that does not require a large heap memory like Vector(Vec etc..),
+// and where the left is a meaningful node and the right falls unilaterally.
+// since it is a FIFO, do not use it for structures that make the stack absolute.
+// can't Insert or Get or Remove from any position.
 #[derive(Debug, Clone)]
 struct StraightBTree {
     node: Option<Box<Node>>,
