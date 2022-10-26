@@ -19,8 +19,190 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<Tree> {
+        let mut root_tree = Tree::new();
 
-        Ok(Tree::new())
+
+        Ok(root_tree)
+    }
+
+   
+
+
+    fn parse_command(&mut self) -> Result<Option<Node>> {
+        let prefix = match self.parse_reference().or_else(|| self.parse_string()) {
+            Some(prefix) => prefix,
+            None => return Ok(None),
+        };
+
+        let suffix = self.parse_command_suffix()?;
+
+        let mut command = Command::new();
+        command.insert_prefix(prefix);
+        command.insert_suffix(suffix);
+
+        Ok(Some(Node::Command(command)))
+    }
+
+    fn parse_command_suffix(&mut self) -> Result<CommandSuffix> {
+        let mut suffix = CommandSuffix::new();
+
+        loop {
+            match self.lexer.peek() {
+                Some(peek_token) => {
+                    if matches!(peek_token, Token::Pipe | Token::Semicolon) {
+                        break;
+                    }
+                }
+                None => break,
+            }
+
+            if self.lexer.next_if_eq(&Token::Ampersand).is_some() {
+                suffix.insert(Node::Background(true));
+                break;
+            }
+
+            if let Some(node) = self.parse_reference().or(self.parse_string()) {
+                suffix.insert(node);
+            }
+
+            if let Some(node) = self.parse_string().or_else(|| self.parse_reference()) {
+                suffix.insert(node);
+            }
+
+            if let Some(node) = self.parse_redirect()? {
+                suffix.insert(node);
+            }
+        }
+
+        Ok(suffix)
+    }
+
+    fn parse_redirect(&mut self) -> Result<Option<Node>> {
+        let left = match self.parse_fd().or_else(|| match self.lexer.peek() {
+            Some(peek_token) => match peek_token {
+                Token::Lt => Some(Node::FD(0)),
+                Token::Gt => Some(Node::FD(1)),
+                _ => None,
+            },
+            None => None,
+        }) {
+            Some(fd) => fd,
+            None => return Ok(None),
+        };
+
+        let kind = match self.lexer.next() {
+            Some(token) => match token {
+                Token::Lt => RedirectKind::Input,
+                Token::Gt => RedirectKind::Output,
+                _ => Err(Error::new("".to_owned()))?,
+            },
+            None => Err(Error::new("".to_owned()))?,
+        };
+
+        let right = match self.parse_fd().or_else(|| self.parse_string()) {
+            Some(right) => right,
+            None => Err(Error::new("".to_owned()))?,
+        };
+
+        let mut redirect = Redirect::new(kind);
+        redirect.insert_left(left);
+        redirect.insert_right(right);
+
+        Ok(Some(Node::Redirect(redirect)))
+    }
+
+    fn parse_close_fd(&mut self) -> Option<Node> {
+        match self.lexer.next_if(|token| match token {
+            Token::FD(fd) => fd < &0,
+            _ => false,
+        }) {
+            Some(token) => match token {
+                Token::FD(fd) => Some(Node::CloseFD(
+                    i32::to_string(&fd)
+                        .pop()
+                        .unwrap()
+                        .to_string()
+                        .parse::<u32>()
+                        .unwrap(),
+                )),
+                _ => None,
+            },
+
+            None => None,
+        }
+    }
+
+    fn parse_background(&mut self) -> Option<Node> {
+        match self.lexer.next_if_eq(&Token::Ampersand).is_some() {
+            true => Some(Node::Background(true)),
+            false => None,
+        }
+    }
+
+    fn parse_fd(&mut self) -> Option<Node> {
+        match self.lexer.next_if(|token| match token {
+            Token::FD(fd) => fd >= &0,
+            _ => false,
+        }) {
+            Some(token) => match token {
+                Token::FD(fd) => Some(Node::FD(fd.try_into().unwrap())),
+                _ => None,
+            },
+
+            None => None,
+        }
+    }
+
+    fn parse_string(&mut self) -> Option<Node> {
+        match self
+            .lexer
+            .next_if(|token| matches!(token, Token::String(_)))
+        {
+            Some(token) => match token {
+                Token::String(string) => Some(Node::String(string)),
+                _ => None,
+            },
+            None => None,
+        }
+    }
+
+    fn parse_reference(&mut self) -> Option<Node> {
+        match self
+            .lexer
+            .next_if(|token| matches!(token, Token::Variable(_)))
+        {
+            Some(token) => match token {
+                Token::Variable(string) => Some(Node::Reference(string)),
+                _ => None,
+            },
+            None => None,
+        }
+    }
+
+    fn parse_insert(&mut self) -> Result<Option<Node>> {
+        if self.lexer.next_if_eq(&Token::Let).is_none() {
+            return Ok(None);
+        }
+
+        let left = match self.parse_string() {
+            Some(node) => node,
+            None => Err(Error::new("".to_owned()))?,
+        };
+
+        if self.lexer.next_if_eq(&Token::Equal).is_none() {
+            Err(Error::new("".to_owned()))?
+        }
+
+        let right = match self.parse_string() {
+            Some(node) => node,
+            None => Err(Error::new("".to_owned()))?,
+        };
+
+        let mut insert = Insert::new();
+        insert.insert_key(left);
+        insert.insert_val(right);
+
+        Ok(Some(Node::Insert(insert)))
     }
 }
 
@@ -30,8 +212,8 @@ pub enum Node {
     FD(u32),
     CloseFD(u32),
     Command(Command),
-    VReference(String),
-    VInsert(VInsert),
+    Reference(String),
+    Insert(Insert),
     Redirect(Redirect),
     Background(bool),
     Tree(Tree),
@@ -39,14 +221,58 @@ pub enum Node {
 }
 
 #[derive(Debug, Clone)]
+pub struct Insert {
+    key: Option<Box<Node>>,
+    val: Option<Box<Node>>,
+}
+
+impl Insert {
+    fn new() -> Self {
+        Self {
+            key: None,
+            val: None,
+        }
+    }
+
+    fn insert_key(&mut self, key: Node) {
+        self.key = Some(Box::new(key))
+    }
+
+    fn insert_val(&mut self, val: Node) {
+        self.val = Some(Box::new(val))
+    }
+
+    pub fn take(&mut self) -> (Option<Node>, Option<Node>) {
+        (
+            match self.key.to_owned() {
+                Some(node) => Some(*node),
+                None => None,
+            },
+            match self.val.to_owned() {
+                Some(node) => Some(*node),
+                None => None,
+            },
+        )
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum RedirectKind {
+    Input,
+    Output,
+}
+
+#[derive(Debug, Clone)]
 pub struct Redirect {
+    kind: RedirectKind,
     left: Option<Box<Node>>,
     right: Option<Box<Node>>,
 }
 
 impl Redirect {
-    fn new() -> Self {
+    fn new(kind: RedirectKind) -> Self {
         Self {
+            kind: kind,
             left: None,
             right: None,
         }
@@ -81,68 +307,22 @@ impl Command {
         }
     }
 
-    pub fn take_suffix(&mut self) -> Option<Node> {
-        if let Some(suffix) = self.suffix.as_mut() {
-            return suffix.take();
+    pub fn take_suffix(&mut self) -> Option<CommandSuffix> {
+        match self.suffix.take() {
+            Some(suffix) => Some(*suffix),
+            None => None,
         }
-        None
     }
 
-    fn insert_prefix(&mut self, node: Node) {
-        self.prefix = Some(Box::new(node))
+    fn insert_prefix(&mut self, prefix: Node) {
+        self.prefix = Some(Box::new(prefix))
     }
 
-    fn insert_suffix(&mut self, node: Node) {
-        if let Some(suffix) = self.suffix.as_mut() {
-            suffix.insert(node)
-        } else {
-            self.suffix = Some(Box::new(CommandSuffix::new()));
-            self.insert_suffix(node)
-        }
+    fn insert_suffix(&mut self, suffix: CommandSuffix) {
+        self.suffix = Some(Box::new(suffix))
     }
 }
 
-// #[derive(Debug, Clone)]
-// pub struct CommandSuffix {
-//     node: Option<Node>,
-//     suffix: Option<Box<CommandSuffix>>,
-// }
-
-// impl CommandSuffix {
-//     fn new() -> Self {
-//         Self {
-//             node: None,
-//             suffix: None,
-//         }
-//     }
-
-//     pub fn take(&mut self) -> Option<Node> {
-//         if let Some(node) = self.node.take() {
-//             return Some(node);
-//         }
-
-//         if let Some(node) = self.suffix.as_mut() {
-//             return node.take();
-//         }
-
-//         None
-//     }
-
-//     fn insert(&mut self, node: Node) {
-//         if self.node.is_none() {
-//             self.node = Some(node)
-//         } else if self.suffix.is_none() {
-//             self.suffix = Some(Box::new(CommandSuffix {
-//                 node: Some(node),
-//                 suffix: None,
-//             }))
-//         } else {
-//             if let Some(suffix) = self.suffix.as_mut() {
-//                 suffix.insert(node)
-//             }
-//         }
-//     }
-// }
 #[derive(Debug, Clone)]
 pub struct CommandSuffix(StraightBTree);
 
@@ -161,105 +341,6 @@ impl CommandSuffix {
         self.0.take()
     }
 }
-
-#[derive(Debug, Clone)]
-pub struct VInsert {
-    key: Option<Box<Node>>,
-    val: Option<Box<Node>>,
-}
-
-impl VInsert {
-    fn new() -> Self {
-        Self {
-            key: None,
-            val: None,
-        }
-    }
-
-    pub fn take(&mut self) -> (Option<Node>, Option<Node>) {
-        (self.take_key(), self.take_val())
-    }
-
-    fn take_key(&mut self) -> Option<Node> {
-        match self.key.take() {
-            Some(key) => Some(*key),
-            None => None,
-        }
-    }
-
-    fn take_val(&mut self) -> Option<Node> {
-        match self.val.take() {
-            Some(val) => Some(*val),
-            None => None,
-        }
-    }
-
-    fn insert_key(&mut self, node: Node) {
-        self.key = Some(Box::new(node))
-    }
-
-    fn insert_val(&mut self, node: Node) {
-        self.val = Some(Box::new(node))
-    }
-}
-
-// #[derive(Debug, Clone)]
-// pub struct Pipe {
-//     node: Option<Box<Node>>,
-//     pipe: Option<Box<Pipe>>,
-// }
-
-// impl Pipe {
-//     fn new() -> Self {
-//         Self {
-//             node: None,
-//             pipe: None,
-//         }
-//     }
-
-//     pub fn is_pipe(&self) -> bool {
-//         if self.node.is_some() {
-//             return self.pipe.is_some();
-//         }
-
-//         if let Some(node) = self.pipe.as_ref() {
-//             if node.node.is_some() == false {
-//                 return node.is_pipe();
-//             } else {
-//                 return true;
-//             }
-//         }
-
-//         false
-//     }
-
-//     pub fn take(&mut self) -> Option<Node> {
-//         if let Some(node) = self.node.take() {
-//             return Some(*node);
-//         }
-
-//         if let Some(node) = self.pipe.as_mut() {
-//             return node.take();
-//         }
-
-//         None
-//     }
-
-//     fn insert(&mut self, node: Node) {
-//         if self.node.is_none() {
-//             self.node = Some(Box::new(node))
-//         } else if self.pipe.is_none() {
-//             self.pipe = Some(Box::new(Pipe {
-//                 node: Some(Box::new(node)),
-//                 pipe: None,
-//             }))
-//         } else {
-//             if let Some(pipe) = self.pipe.as_mut() {
-//                 pipe.insert(node)
-//             }
-//         }
-//     }
-// }
 
 #[derive(Debug, Clone)]
 pub struct Pipe(StraightBTree);
