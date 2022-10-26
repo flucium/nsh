@@ -1,6 +1,7 @@
 use crate::parser::token::Token;
 use std::collections::VecDeque;
 
+#[derive(Clone)]
 pub struct Lexer {
     input: VecDeque<char>,
     peek_token: Option<Token>,
@@ -40,13 +41,44 @@ impl Lexer {
                     }
                 }
 
-                // ch @ '0'..='9' => {}
+                ch @ '0'..='9' => {
+                    let mut string = String::from(ch);
+
+                    string.push_str(&self.read_string(false));
+
+                    match string.parse::<i32>() {
+                        Ok(number) => {
+                            let front_ch = self.input.front().unwrap_or(&' ');
+                            if front_ch.is_whitespace() || matches!(front_ch, '>' | '<') == false {
+                                return Some(Token::String(string));
+                            } else {
+                                return Some(Token::FD(number));
+                            }
+                        }
+                        Err(_) => return Some(Token::String(string)),
+                    }
+                }
 
                 '|' => return Some(Token::Pipe),
 
                 ';' => return Some(Token::Semicolon),
 
-                '&' => return Some(Token::Ampersand),
+                '&' => {
+                    if self.input.front().unwrap_or(&' ').is_whitespace() == false {
+                        let mut string = self.read_string(false);
+                        
+                        match string.parse::<i32>() {
+                            Ok(number) => return Some(Token::FD(number)),
+                            Err(_) => {
+                                while let Some(ch) = string.pop() {
+                                    self.input.push_front(ch)
+                                }
+                            }
+                        }
+                    }
+
+                    return Some(Token::Ampersand);
+                }
 
                 '>' => return Some(Token::Gt),
 
@@ -54,7 +86,16 @@ impl Lexer {
 
                 '=' => return Some(Token::Equal),
 
-                '$' => return Some(Token::Variable(self.read_string(false))),
+                // '$' => return Some(Token::Variable(self.read_string(false))),
+                '$' => {
+                    let front_ch = self.input.front().unwrap_or(&' ');
+
+                    if front_ch.is_whitespace() {
+                        return Some(Token::String("$".to_owned()));
+                    } else {
+                        return Some(Token::Variable(self.read_string(front_ch == &'"')));
+                    }
+                }
 
                 '"' => return Some(Token::String(self.read_string(true))),
 
@@ -63,7 +104,11 @@ impl Lexer {
 
                     string.push_str(&self.read_string(false));
 
-                    return Some(Token::String(string))
+                    if string.to_lowercase() == "let" {
+                        return Some(Token::Let);
+                    } else {
+                        return Some(Token::String(string));
+                    }
                 }
             }
         }
