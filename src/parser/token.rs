@@ -5,10 +5,11 @@ use std::fmt::Result;
 #[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub enum Token {
     String(String),   // any string
-    FD(u32),          //0 ~ 9
+    FD(i32),          //0 ~ 9
     Variable(String), //$A
     Equal,            // =
     Ampersand,        // &
+    Let,              // let a = b
     Gt,               // >
     Lt,               // <
     Pipe,             // |
@@ -23,6 +24,7 @@ impl Display for Token {
             Token::Variable(string) => write!(tkn, "{string}"),
             Token::Equal => write!(tkn, "="),
             Token::Ampersand => write!(tkn, "&"),
+            Token::Let => write!(tkn, "let"),
             Token::Gt => write!(tkn, ">"),
             Token::Lt => write!(tkn, "<"),
             Token::Pipe => write!(tkn, "|"),
