@@ -19,14 +19,72 @@ impl Parser {
     }
 
     pub fn parse(&mut self) -> Result<Tree> {
-        let mut root_tree = Tree::new();
+        let mut is_pipe = false;
 
+        let mut tree = Tree::new();
 
-        Ok(root_tree)
+        loop {
+            let mut nodes = Vec::new();
+            loop {
+                if let Some(node) = self.parse_insert()? {
+                    nodes.push(node);
+                    continue;
+                }
+
+                if let Some(node) = self.parse_close_fd() {
+                    nodes.push(node);
+                    continue;
+                }
+
+                if let Some(node) = self.parse_redirect()? {
+                    nodes.push(node);
+                    continue;
+                }
+
+                if let Some(node) = self.parse_command()? {
+                    nodes.push(node);
+                    continue;
+                }
+
+                if self.lexer.next_if_eq(&Token::Pipe).is_some() {
+                    is_pipe = true;
+                    continue;
+                }
+
+                if self.lexer.next_if_eq(&Token::Semicolon).is_some() {
+                    break;
+                }
+
+                Err(Error::new("".to_owned()))?;
+
+                if self.lexer.peek().is_none() {
+                    break;
+                }
+            }
+
+            if is_pipe {
+                let mut pipe = Pipe::new();
+
+                for node in nodes {
+                    pipe.insert(node)
+                }
+
+                tree.insert(Node::Pipe(pipe));
+            } else {
+                for node in nodes {
+                    tree.insert(node)
+                }
+            }
+
+            if self.lexer.peek().is_none() {
+                break;
+            }
+
+            is_pipe = false;
+        }
+
+        Ok(tree)
     }
-
-   
-
 
     fn parse_command(&mut self) -> Result<Option<Node>> {
         let prefix = match self.parse_reference().or_else(|| self.parse_string()) {
