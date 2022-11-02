@@ -53,13 +53,12 @@ impl Parser {
                     break;
                 }
 
-                
-                Err(Error::new(
-                    ErrorKind::WrongSyntax,
-                    format!("unknown token: {}", self.lexer.peek().unwrap()),
-                ))?;
-
-                if self.lexer.peek().is_none() {
+                if self.lexer.peek().is_some() {
+                    Err(Error::new(
+                        ErrorKind::WrongSyntax,
+                        format!("unknown token: {}", self.lexer.peek().unwrap()),
+                    ))?;
+                } else {
                     break;
                 }
             }
@@ -133,7 +132,7 @@ impl Parser {
                 suffix.insert(node);
             }
 
-            if let Some(node)=self.parse_background(){
+            if let Some(node) = self.parse_background() {
                 suffix.insert(node);
             }
         }
@@ -154,21 +153,28 @@ impl Parser {
             None => return Ok(None),
         };
 
-        
         let kind = match self.lexer.next() {
             Some(token) => match token {
                 Token::Lt => RedirectKind::Input,
                 Token::Gt => RedirectKind::Output,
-                _ => Err(Error::new(ErrorKind::WrongSyntax, format!("{} token cannot be used",token)))?,
+                _ => Err(Error::new(
+                    ErrorKind::WrongSyntax,
+                    format!("{} token cannot be used", token),
+                ))?,
             },
-            
-            
-            None => Err(Error::new(ErrorKind::WrongSyntax, "redirect direction is not specified".to_owned()))?,
+
+            None => Err(Error::new(
+                ErrorKind::WrongSyntax,
+                "redirect direction is not specified".to_owned(),
+            ))?,
         };
 
         let right = match self.parse_fd().or_else(|| self.parse_string()) {
             Some(right) => right,
-            None => Err(Error::new(ErrorKind::WrongSyntax, "no redirect destination specified".to_owned()))?,
+            None => Err(Error::new(
+                ErrorKind::WrongSyntax,
+                "no redirect destination specified".to_owned(),
+            ))?,
         };
 
         let mut redirect = Redirect::new(kind);
@@ -253,16 +259,25 @@ impl Parser {
 
         let left = match self.parse_string() {
             Some(node) => node,
-            None => Err(Error::new(ErrorKind::WrongSyntax, "the prefix of = in the let statement was not found".to_owned()))?,
+            None => Err(Error::new(
+                ErrorKind::WrongSyntax,
+                "the prefix of = in the let statement was not found".to_owned(),
+            ))?,
         };
 
         if self.lexer.next_if_eq(&Token::Equal).is_none() {
-            Err(Error::new(ErrorKind::WrongSyntax, "the = in the let statement could not be found".to_owned()))?
+            Err(Error::new(
+                ErrorKind::WrongSyntax,
+                "the = in the let statement could not be found".to_owned(),
+            ))?
         }
 
         let right = match self.parse_string() {
             Some(node) => node,
-            None => Err(Error::new(ErrorKind::WrongSyntax, "the suffix of = in the let statement was not found".to_owned()))?,
+            None => Err(Error::new(
+                ErrorKind::WrongSyntax,
+                "the suffix of = in the let statement was not found".to_owned(),
+            ))?,
         };
 
         let mut insert = Insert::new();
