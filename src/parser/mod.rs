@@ -132,6 +132,10 @@ impl Parser {
             if let Some(node) = self.parse_redirect()? {
                 suffix.insert(node);
             }
+
+            if let Some(node)=self.parse_background(){
+                suffix.insert(node);
+            }
         }
 
         Ok(suffix)
