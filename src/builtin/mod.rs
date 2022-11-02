@@ -3,6 +3,8 @@ use std::env;
 use std::io;
 use std::path::Path;
 
+// pub type Command = ();
+
 pub fn exit(code: i32) {
     process::exit(code)
 }
