@@ -2,10 +2,8 @@ pub mod lexer;
 pub mod token;
 use self::lexer::Lexer;
 use self::token::Token;
-use std::fmt;
+use crate::error::*;
 use std::iter::Peekable;
-
-type Result<T> = std::result::Result<T, Error>;
 
 pub struct Parser {
     lexer: Peekable<Lexer>,
@@ -55,7 +53,11 @@ impl Parser {
                     break;
                 }
 
-                Err(Error::new("".to_owned()))?;
+                
+                Err(Error::new(
+                    ErrorKind::WrongSyntax,
+                    format!("unknown token: {}", self.lexer.peek().unwrap()),
+                ))?;
 
                 if self.lexer.peek().is_none() {
                     break;
@@ -148,18 +150,21 @@ impl Parser {
             None => return Ok(None),
         };
 
+        
         let kind = match self.lexer.next() {
             Some(token) => match token {
                 Token::Lt => RedirectKind::Input,
                 Token::Gt => RedirectKind::Output,
-                _ => Err(Error::new("".to_owned()))?,
+                _ => Err(Error::new(ErrorKind::WrongSyntax, format!("{} token cannot be used",token)))?,
             },
-            None => Err(Error::new("".to_owned()))?,
+            
+            
+            None => Err(Error::new(ErrorKind::WrongSyntax, "redirect direction is not specified".to_owned()))?,
         };
 
         let right = match self.parse_fd().or_else(|| self.parse_string()) {
             Some(right) => right,
-            None => Err(Error::new("".to_owned()))?,
+            None => Err(Error::new(ErrorKind::WrongSyntax, "no redirect destination specified".to_owned()))?,
         };
 
         let mut redirect = Redirect::new(kind);
@@ -244,16 +249,16 @@ impl Parser {
 
         let left = match self.parse_string() {
             Some(node) => node,
-            None => Err(Error::new("".to_owned()))?,
+            None => Err(Error::new(ErrorKind::WrongSyntax, "the prefix of = in the let statement was not found".to_owned()))?,
         };
 
         if self.lexer.next_if_eq(&Token::Equal).is_none() {
-            Err(Error::new("".to_owned()))?
+            Err(Error::new(ErrorKind::WrongSyntax, "the = in the let statement could not be found".to_owned()))?
         }
 
         let right = match self.parse_string() {
             Some(node) => node,
-            None => Err(Error::new("".to_owned()))?,
+            None => Err(Error::new(ErrorKind::WrongSyntax, "the suffix of = in the let statement was not found".to_owned()))?,
         };
 
         let mut insert = Insert::new();
@@ -300,17 +305,31 @@ impl Insert {
         self.val = Some(Box::new(val))
     }
 
-    pub fn take(&mut self) -> (Option<Node>, Option<Node>) {
-        (
-            match self.key.to_owned() {
-                Some(node) => Some(*node),
-                None => None,
-            },
-            match self.val.to_owned() {
-                Some(node) => Some(*node),
-                None => None,
-            },
-        )
+    // pub fn take(&mut self) -> (Option<Node>, Option<Node>) {
+    //     (
+    //         match self.key.to_owned() {
+    //             Some(node) => Some(*node),
+    //             None => None,
+    //         },
+    //         match self.val.to_owned() {
+    //             Some(node) => Some(*node),
+    //             None => None,
+    //         },
+    //     )
+    // }
+
+    pub fn take_key(&mut self) -> Option<Node> {
+        match self.key.take() {
+            Some(key) => Some(*key),
+            None => None,
+        }
+    }
+
+    pub fn take_val(&mut self) -> Option<Node> {
+        match self.val.take() {
+            Some(val) => Some(*val),
+            None => None,
+        }
     }
 }
 
@@ -334,6 +353,18 @@ impl Redirect {
             left: None,
             right: None,
         }
+    }
+
+    pub fn kind(&self) -> &RedirectKind {
+        &self.kind
+    }
+
+    pub fn take_left(&mut self) -> Option<Box<Node>> {
+        self.left.take()
+    }
+
+    pub fn take_right(&mut self) -> Option<Box<Node>> {
+        self.right.take()
     }
 
     fn insert_left(&mut self, node: Node) {
@@ -519,30 +550,9 @@ impl StraightBTree {
                 child: None,
             }))
         } else {
-            if let Some(pipe) = self.child.as_mut() {
-                pipe.insert(node)
+            if let Some(child) = self.child.as_mut() {
+                child.insert(node)
             }
         }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct Error {
-    message: String,
-}
-
-impl Error {
-    fn new(message: String) -> Self {
-        Self { message: message }
-    }
-
-    pub fn message(&self) -> &str {
-        &self.message
-    }
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.message)
     }
 }
