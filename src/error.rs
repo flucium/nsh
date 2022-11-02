@@ -3,9 +3,12 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
+    OpenFailed,
+    CreationFailed,
+    NotFound,
+    ExecutionFailed,
     WrongSyntax,
 }
-
 #[derive(Debug, Clone)]
 pub struct Error {
     kind: ErrorKind,
