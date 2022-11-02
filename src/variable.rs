@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
+pub type Key=String;
+pub type Val=String;
+
 #[derive(Debug)]
-pub struct Variable(HashMap<String, String>);
+pub struct Variable(HashMap<Key, Val>);
 
 impl ToOwned for Variable {
     type Owned = Variable;
@@ -18,11 +21,11 @@ impl Variable {
         Self { 0: HashMap::new() }
     }
 
-    pub fn insert(&mut self, key: String, val: String) {
+    pub fn insert(&mut self, key: Key, val: Val) {
         self.0.insert(key, val);
     }
 
-    pub fn get(&mut self, key: &str) -> Option<&String> {
+    pub fn get(&mut self, key: &Key) -> Option<&Val> {
         self.0.get(key)
     }
 }
