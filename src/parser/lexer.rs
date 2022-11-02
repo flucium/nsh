@@ -49,12 +49,14 @@ impl Lexer {
                     match string.parse::<i32>() {
                         Ok(number) => {
                             let front_ch = self.input.front().unwrap_or(&' ');
+
                             if front_ch.is_whitespace() || matches!(front_ch, '>' | '<') == false {
                                 return Some(Token::String(string));
                             } else {
                                 return Some(Token::FD(number));
                             }
                         }
+
                         Err(_) => return Some(Token::String(string)),
                     }
                 }
@@ -66,7 +68,7 @@ impl Lexer {
                 '&' => {
                     if self.input.front().unwrap_or(&' ').is_whitespace() == false {
                         let mut string = self.read_string(false);
-                        
+
                         match string.parse::<i32>() {
                             Ok(number) => return Some(Token::FD(number)),
                             Err(_) => {
