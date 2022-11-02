@@ -54,7 +54,24 @@ impl Evaluator {
                 }
             }
             parser::Node::Command(command) => self.run_command(command)?,
+            parser::Node::Insert(mut insert) => {
+                let key = match insert.take_key() {
+                    Some(node) => match node {
+                        parser::Node::String(string) => string,
+                        _ => Err(Error::new(ErrorKind::Internal, "internal error".to_owned()))?,
+                    },
+                    None => Err(Error::new(ErrorKind::Internal, "internal error".to_owned()))?,
+                };
 
+                let val = match insert.take_val() {
+                    Some(node) => match node {
+                        parser::Node::String(string) => string,
+                        _ => Err(Error::new(ErrorKind::Internal, "internal error".to_owned()))?,
+                    },
+                    None => Err(Error::new(ErrorKind::Internal, "internal error".to_owned()))?,
+                };
+                self.variable.insert(key, val);
+            }
             _ => {}
         }
 
