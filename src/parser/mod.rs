@@ -16,7 +16,7 @@ impl Parser {
         }
     }
 
-    pub fn parse(&mut self) -> Result<Tree> {
+    pub fn parse(&mut self) -> Result<Node> {
         let mut is_pipe = false;
 
         let mut tree = Tree::new();
@@ -84,7 +84,7 @@ impl Parser {
             is_pipe = false;
         }
 
-        Ok(tree)
+        Ok(Node::Tree(tree))
     }
 
     fn parse_command(&mut self) -> Result<Option<Node>> {
