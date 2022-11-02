@@ -7,3 +7,4 @@ pub mod prompt;
 pub mod manifest;
 pub mod ansi;
 pub mod history;
+pub mod terminal;
