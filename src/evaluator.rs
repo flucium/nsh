@@ -1,3 +1,4 @@
+use crate::builtin;
 use crate::error::*;
 use crate::parser;
 use crate::variable;
@@ -155,33 +156,53 @@ impl Evaluator {
             }
         }
 
-        match process::Command::new(program.as_str())
-            .args(args)
-            .stdin(self.stdin.take().unwrap_or(process::Stdio::inherit()))
-            .stdout(self.stdout.take().unwrap_or(process::Stdio::inherit()))
-            .stderr(self.stderr.take().unwrap_or(process::Stdio::inherit()))
-            .spawn()
-        {
-            Ok(mut child) => {
-                if let Some(stdout) = child.stdout {
-                    self.stdin = Some(process::Stdio::from(stdout));
-                } else {
-                    if is_background==false{
-                        if let Err(err) = child.wait() {
+        match program.as_str() {
+            "abort" => builtin::abort(),
+            "exit" => {
+                let code = match args.pop().unwrap_or("0".to_owned()).parse::<i32>() {
+                    Ok(code) => code,
+                    Err(_) => Err(Error::new(
+                        ErrorKind::ExecutionFailed,
+                        format!("only i32 is allowed for the exit argument"),
+                    ))?,
+                };
+                builtin::exit(code);
+            }
+            "cd" => {
+                if let Err(err) = builtin::cd(args.pop().unwrap_or("./".to_owned())) {
+                    Err(Error::new(ErrorKind::ExecutionFailed, err.to_string()))?
+                }
+            }
+            _ => {
+                match process::Command::new(program.as_str())
+                    .args(args)
+                    .stdin(self.stdin.take().unwrap_or(process::Stdio::inherit()))
+                    .stdout(self.stdout.take().unwrap_or(process::Stdio::inherit()))
+                    .stderr(self.stderr.take().unwrap_or(process::Stdio::inherit()))
+                    .spawn()
+                {
+                    Ok(mut child) => {
+                        if let Some(stdout) = child.stdout {
+                            self.stdin = Some(process::Stdio::from(stdout));
+                        } else {
+                            if is_background == false {
+                                if let Err(err) = child.wait() {
+                                    Err(Error::new(ErrorKind::ExecutionFailed, err.to_string()))?
+                                }
+                            }
+                        }
+                    }
+
+                    Err(err) => {
+                        if err.kind() == io::ErrorKind::NotFound {
+                            Err(Error::new(
+                                ErrorKind::NotFound,
+                                format!("nsh command not found: {}", program),
+                            ))?
+                        } else {
                             Err(Error::new(ErrorKind::ExecutionFailed, err.to_string()))?
                         }
                     }
-                }
-            }
-
-            Err(err) => {
-                if err.kind() == io::ErrorKind::NotFound {
-                    Err(Error::new(
-                        ErrorKind::NotFound,
-                        format!("nsh command not found: {}", program),
-                    ))?
-                } else {
-                    Err(Error::new(ErrorKind::ExecutionFailed, err.to_string()))?
                 }
             }
         }
