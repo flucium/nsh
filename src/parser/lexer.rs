@@ -105,7 +105,7 @@ impl Lexer {
                     let mut string = String::from(ch);
 
                     string.push_str(&self.read_string(false));
-
+                    
                     if string.to_lowercase() == "let" {
                         return Some(Token::Let);
                     } else {
