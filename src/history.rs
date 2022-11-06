@@ -34,11 +34,4 @@ impl History {
         }
     }
 
-    // pub fn len(&self)->usize{
-    //     self.1.len()
-    // }
 }
-
-// impl From<String> for History{}
-// impl From<fs::File> for History{}
-// impl ToString for History
