@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 libc = "0.2.126"
+clap = "4.0.14"
 sha-1 = "0.10.0"
