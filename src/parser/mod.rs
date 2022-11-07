@@ -253,30 +253,27 @@ impl Parser {
     }
 
     fn parse_insert(&mut self) -> Result<Option<Node>> {
-        if self.lexer.next_if_eq(&Token::Let).is_none() {
+        // if self.lexer.next_if_eq(&Token::Let).is_none() {
+        //     return Ok(None);
+        // }
+
+        if self.lexer.next_if_eq(&Token::Equal).is_none() {
             return Ok(None);
         }
-
+       
         let left = match self.parse_string() {
             Some(node) => node,
             None => Err(Error::new(
                 ErrorKind::WrongSyntax,
-                "the prefix of = in the let statement was not found".to_owned(),
+                "the prefix of = in the insert statement was not found".to_owned(),
             ))?,
         };
-
-        if self.lexer.next_if_eq(&Token::Equal).is_none() {
-            Err(Error::new(
-                ErrorKind::WrongSyntax,
-                "the = in the let statement could not be found".to_owned(),
-            ))?
-        }
 
         let right = match self.parse_string() {
             Some(node) => node,
             None => Err(Error::new(
                 ErrorKind::WrongSyntax,
-                "the suffix of = in the let statement was not found".to_owned(),
+                "the suffix of = in the insert statement was not found".to_owned(),
             ))?,
         };
 
