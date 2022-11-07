@@ -9,7 +9,7 @@ pub enum Token {
     Variable(String), //$A
     Equal,            // =
     Ampersand,        // &
-    Let,              // let a = b
+    // Let,              // let a = b
     Gt,               // >
     Lt,               // <
     Pipe,             // |
@@ -24,7 +24,7 @@ impl Display for Token {
             Token::Variable(string) => write!(tkn, "{string}"),
             Token::Equal => write!(tkn, "="),
             Token::Ampersand => write!(tkn, "&"),
-            Token::Let => write!(tkn, "let"),
+            // Token::Let => write!(tkn, "let"),
             Token::Gt => write!(tkn, ">"),
             Token::Lt => write!(tkn, "<"),
             Token::Pipe => write!(tkn, "|"),
