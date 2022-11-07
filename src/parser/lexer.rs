@@ -1,5 +1,6 @@
 use crate::parser::token::Token;
 use std::collections::VecDeque;
+use std::mem;
 
 #[derive(Clone)]
 pub struct Lexer {
@@ -11,9 +12,13 @@ impl Iterator for Lexer {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let token = self.peek_token.take().or_else(|| self.pop_front());
+        let mut token = self.peek_token.take().or_else(|| self.pop_front());
 
         self.peek_token = self.pop_front();
+
+        if matches!(self.peek_token,Some(Token::Equal)){
+            mem::swap(&mut token, &mut self.peek_token);
+        }
 
         token
     }
@@ -106,11 +111,12 @@ impl Lexer {
 
                     string.push_str(&self.read_string(false));
                     
-                    if string.to_lowercase() == "let" {
-                        return Some(Token::Let);
-                    } else {
-                        return Some(Token::String(string));
-                    }
+                    // if string.to_lowercase() == "let" {
+                    //     return Some(Token::Let);
+                    // } else {
+                    //     return Some(Token::String(string));
+                    // }
+                    return Some(Token::String(string));
                 }
             }
         }
