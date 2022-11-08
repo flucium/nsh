@@ -7,6 +7,7 @@ use std::collections::HashMap;
 // NSH_HISTORY_MAX_SIZE
 // NSH_HISTORY_MAX_MEMORY_SIZE
 // NSH_BC_[COMMAND NAME]
+// NSH_REGEX
 
 #[derive(Debug)]
 pub struct Variable(HashMap<String, String>);
