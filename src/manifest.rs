@@ -5,3 +5,7 @@ pub fn name()->&'static str{
 pub fn version()->&'static str{    
     "1.0.0"
 }
+
+pub fn author()->&'static str{
+    "flucium"
+}
