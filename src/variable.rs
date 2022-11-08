@@ -31,7 +31,8 @@ impl Variable {
         self.0.insert(key, val);
     }
 
-    pub fn get(&mut self, key: &str) -> Option<&String> {
-        self.0.get(key)
+    // pub fn get(&mut self, key: &str) -> Option<&String> {
+        pub fn get(&mut self, key: &str) -> Option<&str> {
+        self.0.get(key).map(|x| &**x)
     }
 }
