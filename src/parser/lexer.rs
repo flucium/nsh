@@ -111,12 +111,11 @@ impl Lexer {
 
                     string.push_str(&self.read_string(false));
                     
-                    // if string.to_lowercase() == "let" {
-                    //     return Some(Token::Let);
-                    // } else {
-                    //     return Some(Token::String(string));
-                    // }
-                    return Some(Token::String(string));
+                    if string.to_lowercase() == "include" {
+                        return Some(Token::Include);
+                    } else {
+                        return Some(Token::String(string));
+                    }
                 }
             }
         }
