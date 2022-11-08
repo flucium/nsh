@@ -4,14 +4,13 @@ use crate::history::History;
 use crate::parser;
 use crate::parser::lexer::Lexer;
 use crate::parser::Parser;
+use crate::profile;
 use crate::prompt;
 use crate::terminal::Terminal;
 use crate::variable::Variable;
-use crate::profile;
 use std::env;
 use std::io;
 use std::io::Write;
-
 
 pub struct Shell {
     terminal: Terminal,
@@ -26,9 +25,8 @@ impl Shell {
         }
     }
 
-    pub fn initialize(&mut self) -> Result<&mut Self >{
-
-        let node = parse( profile::read()?) ?;
+    pub fn initialize(&mut self) -> Result<&mut Self> {
+        let node = parse(profile::read()?)?;
 
         let mut evaluator = Evaluator::new(node);
 
@@ -44,7 +42,7 @@ impl Shell {
     }
 
     fn init_history(&mut self) {
-        if let Some(val) = self.variable.get(&"NSH_HISTORY".into()) {
+        if let Some(val) = self.variable.get("NSH_HISTORY") {
             if val.parse::<bool>().unwrap_or(false) {
                 self.terminal.history(History::new());
             }
@@ -59,10 +57,7 @@ impl Shell {
 
     fn rep(&mut self) {
         self.terminal.prompt(prompt::decode(
-            self.variable
-                .get(&"NSH_PROMPT".into())
-                .unwrap_or(&">".to_owned())
-                .into(),
+            self.variable.get("NSH_PROMPT").unwrap().to_owned()
         ));
 
         let source = match self.terminal.read_line() {
@@ -101,5 +96,3 @@ fn parse(source: String) -> Result<parser::Node> {
     ))
     .parse()
 }
-
-
