@@ -3,6 +3,7 @@ pub mod token;
 use self::lexer::Lexer;
 use self::token::Token;
 use crate::error::*;
+
 use std::iter::Peekable;
 
 pub struct Parser {
@@ -260,7 +261,7 @@ impl Parser {
         if self.lexer.next_if_eq(&Token::Equal).is_none() {
             return Ok(None);
         }
-       
+
         let left = match self.parse_string() {
             Some(node) => node,
             None => Err(Error::new(
