@@ -1,10 +1,15 @@
 use std::collections::HashMap;
 
-pub type Key=String;
-pub type Val=String;
+// Reserved
+// NSH_PROMPT
+// NSH_HISTORY
+// NSH_HISTORY_FILE
+// NSH_HISTORY_MAX_SIZE
+// NSH_HISTORY_MAX_MEMORY_SIZE
+// NSH_BC_[COMMAND NAME]
 
 #[derive(Debug)]
-pub struct Variable(HashMap<Key, Val>);
+pub struct Variable(HashMap<String, String>);
 
 impl ToOwned for Variable {
     type Owned = Variable;
@@ -21,11 +26,11 @@ impl Variable {
         Self { 0: HashMap::new() }
     }
 
-    pub fn insert(&mut self, key: Key, val: Val) {
+    pub fn insert(&mut self, key: String, val: String) {
         self.0.insert(key, val);
     }
 
-    pub fn get(&mut self, key: &Key) -> Option<&Val> {
+    pub fn get(&mut self, key: &String) -> Option<&String> {
         self.0.get(key)
     }
 }
