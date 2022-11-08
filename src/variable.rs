@@ -30,7 +30,7 @@ impl Variable {
         self.0.insert(key, val);
     }
 
-    pub fn get(&mut self, key: &String) -> Option<&String> {
+    pub fn get(&mut self, key: &str) -> Option<&String> {
         self.0.get(key)
     }
 }
