@@ -12,7 +12,7 @@ pub enum Token {
     // Let,              // let a = b
     Gt,        // >
     Lt,        // <
-    Include,   //include
+    // Include,   //include
     Pipe,      // |
     Semicolon, // ;
 }
@@ -28,7 +28,7 @@ impl Display for Token {
             // Token::Let => write!(tkn, "let"),
             Token::Gt => write!(tkn, ">"),
             Token::Lt => write!(tkn, "<"),
-            Token::Include => write!(tkn, "include"),
+            // Token::Include => write!(tkn, "include"),
             Token::Pipe => write!(tkn, "|"),
             Token::Semicolon => write!(tkn, ";"),
         }
