@@ -3,7 +3,7 @@ use std::env;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
-pub fn get_path() -> Result<PathBuf> {
+fn get_path() -> Result<PathBuf> {
     match env::var("HOME").or(env::var("USER")) {
         Ok(val) => {
             let mut path = PathBuf::from(val);
