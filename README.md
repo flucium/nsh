@@ -94,5 +94,7 @@
 
 **NSH_BC_[COMMAND NAME]**
 
+**NSH_REGEX**
+
 # Future
 Implement: array and tuple, variable insert variable.
