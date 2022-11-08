@@ -9,3 +9,4 @@ pub mod ansi;
 pub mod history;
 pub mod terminal;
 pub mod shell;
+pub mod profile;
