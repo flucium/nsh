@@ -1,11 +1,10 @@
 pub mod parser;
 pub mod error;
-pub mod variable;
 pub mod builtin;
-pub mod prompt;
 pub mod manifest;
 pub mod ansi;
 pub mod history;
 pub mod terminal;
 pub mod shell;
 pub mod profile;
+pub mod variable;
