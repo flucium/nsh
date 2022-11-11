@@ -1,3 +1,4 @@
+pub mod prompt;
 pub mod lexer;
 pub mod token;
 use self::lexer::Lexer;
