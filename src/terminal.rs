@@ -32,9 +32,8 @@ impl Terminal {
     //     self.history.as_ref()
     // }
 
-    pub fn prompt(&mut self, prompt: String) -> &mut Terminal {
+    pub fn prompt(&mut self, prompt: String) {
         self.prompt = prompt;
-        self
     }
 
     pub fn read_line(&mut self) -> io::Result<String> {
@@ -268,7 +267,7 @@ impl Terminal {
         let mut raw = self.origin_termios;
 
         raw.c_lflag = raw.c_lflag & !(libc::ICANON | libc::ECHO | libc::IEXTEN | libc::ISIG);
-
+        // raw.c_lflag = raw.c_lflag & !(libc::ICANON | libc::ECHO );
         raw.c_cc[libc::VTIME] = 0;
 
         raw.c_cc[libc::VMIN] = 1;
