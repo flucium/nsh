@@ -28,10 +28,6 @@ impl Terminal {
         self
     }
 
-    // pub fn get_history(&self) -> Option<&History> {
-    //     self.history.as_ref()
-    // }
-
     pub fn prompt(&mut self, prompt: String) {
         self.prompt = prompt;
     }
