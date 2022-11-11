@@ -1,8 +1,6 @@
 use std::io::stderr;
 use std::io::Write;
 
-
-
 fn main() {
     match nsh::shell::Shell::new().initialize() {
         Ok(ok) => ok.repl(),
