@@ -1,11 +1,9 @@
 use crate::builtin;
 use crate::error::*;
-use crate::history::History;
 use crate::parser;
 use crate::parser::lexer::Lexer;
 use crate::parser::Parser;
 use crate::profile;
-use crate::prompt;
 use crate::terminal::Terminal;
 use crate::variable::Variable;
 use std::env;
@@ -17,14 +15,12 @@ use std::os::unix::io::FromRawFd;
 use std::process;
 
 pub struct Shell {
-    terminal: Terminal,
     variable: Variable,
 }
 
 impl Shell {
     pub fn new() -> Self {
         Self {
-            terminal: Terminal::new(),
             variable: Variable::new(),
         }
     }
@@ -33,56 +29,48 @@ impl Shell {
         let node = parse(profile::read()?)?;
 
         self.variable = Evaluator::new(node)
-            .set_variable(self.variable.to_owned())
+            .set_variable(self.variable.variable())
             .eval()?
-            .variable();
-
-        self.init_history();
+            .take_variable();
 
         Ok(self)
     }
 
-    fn init_history(&mut self) {
-        if let Some(val) = self.variable.get("NSH_HISTORY") {
-            if val.parse::<bool>().unwrap_or(false) {
-                self.terminal.history(History::new());
-            }
-        }
-    }
-
     pub fn repl(&mut self) {
         loop {
-            self.rep()
+            self.rep();
         }
     }
 
     fn rep(&mut self) {
-        self.terminal.prompt(prompt::decode(
-            self.variable.get("NSH_PROMPT").unwrap().to_owned(),
-        ));
+        let prompt = parser::prompt::parse(
+            self.variable
+                .get("NSH_PROMPT".to_owned())
+                .unwrap_or(&String::default()),
+        );
+        let mut terminal = Terminal::new();
 
-        let source = match self.terminal.read_line() {
+        terminal.prompt(prompt);
+
+        let source = match terminal.read_line() {
             Ok(string) => string,
             Err(err) => panic!("{err}"),
         };
+        drop(terminal);
 
         match parse(source) {
-            Ok(node) => {
-                match Evaluator::new(node)
-                    .set_variable(self.variable.to_owned())
-                    .eval()
-                {
-                    Ok(eval) => {
-                        self.variable = eval.variable();
-                    }
-                    Err(err) => {
-                        io::stderr()
-                            .lock()
-                            .write(format!("{err}\n").as_bytes())
-                            .unwrap();
-                    }
+            Ok(node) => match Evaluator::new(node)
+                .set_variable(self.variable.variable())
+                .eval()
+            {
+                Ok(eval) => self.variable = eval.take_variable(),
+                Err(err) => {
+                    io::stderr()
+                        .lock()
+                        .write(format!("{err}\n").as_bytes())
+                        .unwrap();
                 }
-            }
+            },
             Err(err) => {
                 io::stderr()
                     .lock()
@@ -128,8 +116,8 @@ impl Evaluator {
         self
     }
 
-    pub fn variable(&mut self) -> Variable {
-        self.variable.to_owned()
+    pub fn take_variable(&mut self) -> Variable {
+        self.variable.variable()
     }
 
     pub fn eval(&mut self) -> Result<&mut Self> {
@@ -171,7 +159,6 @@ impl Evaluator {
                     },
                     None => return Ok(self),
                 };
-
                 self.variable.insert(key, val);
             }
 
@@ -192,7 +179,11 @@ impl Evaluator {
                 }
 
                 parser::Node::Reference(key) => {
-                    program = self.variable.get(&key).unwrap_or_default().to_owned()
+                    program = self
+                        .variable
+                        .get(key)
+                        .unwrap_or(&String::default())
+                        .to_owned();
                 }
                 _ => Err(Error::new(ErrorKind::ExecutionFailed, "".to_owned()))?,
             }
@@ -209,8 +200,8 @@ impl Evaluator {
                 match node {
                     parser::Node::String(string) => args.push(string),
                     parser::Node::Reference(key) => {
-                        if let Some(val) = self.variable.get(&key) {
-                            args.push(val.to_owned());
+                        if let Some(val) = self.variable.get(key) {
+                            args.push(val.to_owned())
                         }
                     }
                     parser::Node::Redirect(mut redirect) => {
@@ -298,7 +289,13 @@ impl Evaluator {
             _ => {
                 match process::Command::new(&program)
                     .args(args)
-                    .env("PATH", self.variable.get("PATH").unwrap_or_default())
+                    .env(
+                        "PATH",
+                        self.variable
+                            .get("PATH".to_owned())
+                            .unwrap_or(&String::default())
+                            .to_owned(),
+                    )
                     .stdin(self.stdin.take().unwrap_or(process::Stdio::inherit()))
                     .stdout(self.stdout.take().unwrap_or(process::Stdio::inherit()))
                     .stderr(self.stderr.take().unwrap_or(process::Stdio::inherit()))
