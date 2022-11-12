@@ -1,5 +1,26 @@
 pub struct History(usize, Vec<String>);
 
+impl ToString for History {
+    fn to_string(&self) -> String {
+        let mut buffer = String::new();
+
+        let len = self.1.len();
+        for i in 0..len {
+            
+            if let Some(string) = self.1.get(i) {
+                
+                buffer.push_str(string);
+                
+                if i < len - 1 {
+                    buffer.push('\n');
+                }
+            }
+        }
+
+        buffer
+    }
+}
+
 impl History {
     pub fn new() -> Self {
         Self {
@@ -23,9 +44,8 @@ impl History {
     }
 
     pub fn prev(&mut self) -> Option<&str> {
-        
-        if self.0 > 0{
-            self.0 -=1;
+        if self.0 > 0 {
+            self.0 -= 1;
         }
 
         match self.1.get(self.0) {
@@ -33,5 +53,4 @@ impl History {
             None => None,
         }
     }
-
 }
