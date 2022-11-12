@@ -51,6 +51,15 @@ impl History {
         }
     }
 
+    // pub fn with_capacity(capacity: usize) -> Self {
+    //     Self {
+    //         0: 0,
+    //         1: Vec::with_capacity(capacity),
+    //     }
+    // }
+
+    // pub fn with_max_size(size:usize)->Self{}
+
     pub fn insert(&mut self, command: String) {
         self.1.push(command);
     }
