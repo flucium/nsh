@@ -29,7 +29,7 @@ impl Shell {
         let node = parse(profile::read()?)?;
 
         self.variable = Evaluator::new(node)
-            .set_variable(self.variable.variable())
+            .set_variable(self.variable.to_owned())
             .eval()?
             .take_variable();
 
@@ -60,7 +60,7 @@ impl Shell {
 
         match parse(source) {
             Ok(node) => match Evaluator::new(node)
-                .set_variable(self.variable.variable())
+                .set_variable(self.variable.to_owned())
                 .eval()
             {
                 Ok(eval) => self.variable = eval.take_variable(),
@@ -117,7 +117,7 @@ impl Evaluator {
     }
 
     pub fn take_variable(&mut self) -> Variable {
-        self.variable.variable()
+        self.variable.to_owned()
     }
 
     pub fn eval(&mut self) -> Result<&mut Self> {
