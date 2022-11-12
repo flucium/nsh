@@ -17,6 +17,10 @@ impl Variable {
         Self { 0: HashMap::new() }
     }
 
+    pub fn remove(&mut self,key:String){
+        self.0.remove(&key);
+    }
+
     pub fn append(&mut self, key: String, val: String) {
         match self.0.get_mut(&key) {
             Some(string) => {
