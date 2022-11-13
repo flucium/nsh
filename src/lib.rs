@@ -3,7 +3,6 @@ pub mod error;
 pub mod builtin;
 pub mod manifest;
 pub mod ansi;
-pub mod history;
 pub mod terminal;
 pub mod shell;
 pub mod profile;
