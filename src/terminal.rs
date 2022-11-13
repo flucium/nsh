@@ -1,5 +1,4 @@
 use crate::ansi;
-use crate::history::History;
 use std::io;
 use std::io::{stdout, Write};
 use std::process::exit;
@@ -9,7 +8,6 @@ pub struct Terminal {
     buffer_index: usize,
     prompt: String,
     origin_termios: libc::termios,
-    history: Option<History>,
 }
 
 impl Terminal {
@@ -19,13 +17,7 @@ impl Terminal {
             buffer_index: 0,
             prompt: String::new(),
             origin_termios: termios(),
-            history: None,
         }
-    }
-
-    pub fn history(&mut self, history: History) -> &mut Terminal {
-        self.history = Some(history);
-        self
     }
 
     pub fn prompt(&mut self, prompt: String) {
@@ -61,62 +53,10 @@ impl Terminal {
 
                         match getch().unwrap_or(91) {
                             //up
-                            65 => {
-                                if let Some(history) = self.history.as_mut() {
-                                    if let Some(string) = history.next() {
-                                        self.buffer.clear();
-                                        self.buffer_index = 0;
-                                        self.buffer.write_all(string.as_bytes())?;
-
-                                        stdout.write_all(
-                                            format!(
-                                                "\r{}{}",
-                                                ansi::Cursor::ClearLine.get_esc_code(),
-                                                self.prompt
-                                            )
-                                            .as_bytes(),
-                                        )?;
-
-                                        stdout.write_all(
-                                            format!(
-                                                "\r{}{}",
-                                                self.prompt,
-                                                String::from_utf8_lossy(&self.buffer)
-                                            )
-                                            .as_bytes(),
-                                        )?;
-                                    }
-                                }
-                            }
+                            65 => {}
 
                             //down
-                            66 => {
-                                if let Some(history) = self.history.as_mut() {
-                                    if let Some(string) = history.prev() {
-                                        self.buffer.clear();
-                                        self.buffer_index = 0;
-                                        self.buffer.write_all(string.as_bytes())?;
-
-                                        stdout.write_all(
-                                            format!(
-                                                "\r{}{}",
-                                                ansi::Cursor::ClearLine.get_esc_code(),
-                                                self.prompt
-                                            )
-                                            .as_bytes(),
-                                        )?;
-
-                                        stdout.write_all(
-                                            format!(
-                                                "\r{}{}",
-                                                self.prompt,
-                                                String::from_utf8_lossy(&self.buffer)
-                                            )
-                                            .as_bytes(),
-                                        )?;
-                                    }
-                                }
-                            }
+                            66 => {}
 
                             //right
                             67 => {
@@ -183,10 +123,6 @@ impl Terminal {
         stdout.write(b"\n")?;
 
         let string = String::from_utf8_lossy(&self.buffer);
-
-        if let Some(history) = self.history.as_mut() {
-            history.insert(string.to_string());
-        }
 
         Ok(string.to_string())
     }
