@@ -201,11 +201,14 @@ impl Evaluator {
             while let Some(node) = suffix.take() {
                 match node {
                     parser::Node::String(string) => args.push(string),
-                    parser::Node::Reference(key) => {
-                        if let Some(val) = self.variable.get(key) {
-                            args.push(val.to_owned())
+                    parser::Node::Reference(key) => match env::var_os(&key) {
+                        Some(val) => args.push(val.to_string_lossy().to_string()),
+                        None => {
+                            if let Some(val) = self.variable.get(key) {
+                                args.push(val.to_owned())
+                            }
                         }
-                    }
+                    },
                     parser::Node::Redirect(mut redirect) => {
                         let left_fd = match redirect.take_left() {
                             Some(left) => match *left {
